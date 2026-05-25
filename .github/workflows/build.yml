@@ -112,8 +112,7 @@ jobs:
           path: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
           key: vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
-        run: |
-          vcpkg install libavif:x64-windows libwebp:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows
+        run: vcpkg install --triplet x64-windows
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
