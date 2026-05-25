@@ -113,7 +113,7 @@ jobs:
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
-          path: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+          path: ${{ github.workspace }}/vcpkg_installed
           key: vcpkg-x64-windows-static-md-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
         run: vcpkg install --triplet x64-windows-static-md
