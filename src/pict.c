@@ -473,9 +473,9 @@ uint8_t *pict_rotate(
             case 3: dx = src_w - 1 - sx; dy = src_h - 1 - sy; break;
             case 4: dx = sx; dy = src_h - 1 - sy; break;
             case 5: dx = sy; dy = sx; break;
-            case 6: dx = sy; dy = src_w - 1 - sx; break;
+            case 6: dx = src_h - 1 - sy; dy = sx; break;
             case 7: dx = src_h - 1 - sy; dy = src_w - 1 - sx; break;
-            case 8: dx = src_h - 1 - sy; dy = sx; break;
+            case 8: dx = sy; dy = src_w - 1 - sx; break;
             default: dx = sx; dy = sy; break;
             }
             uint8_t *dp = dst + ((size_t)dy * dw + dx) * ch;
