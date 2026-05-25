@@ -17,7 +17,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y cmake pkg-config \
-            libavif-dev libwebp-dev libjpeg-dev libpng-dev libheif-dev
+            libavif-dev libwebp-dev libjpeg-dev libpng-dev
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -41,7 +41,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y cmake pkg-config \
-            libavif-dev libwebp-dev libjpeg-dev libpng-dev libheif-dev
+            libavif-dev libwebp-dev libjpeg-dev libpng-dev
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: brew install libavif webp jpeg-turbo libpng libheif
+        run: brew install libavif webp jpeg-turbo libpng
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -83,7 +83,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: brew install libavif webp jpeg-turbo libpng libheif
+        run: brew install libavif webp jpeg-turbo libpng
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest

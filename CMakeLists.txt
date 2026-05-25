@@ -82,14 +82,14 @@ else()
   pkg_check_modules(LIBWEBPDEMUX  REQUIRED libwebpdemux)
   pkg_check_modules(LIBJPEG    REQUIRED libjpeg)
   pkg_check_modules(LIBPNG     REQUIRED libpng)
-  pkg_check_modules(LIBHEIF    REQUIRED libheif)
+  # libheif is loaded at runtime via dlopen() — no link-time dependency.
+  # heic_decode.c uses dlopen/dlsym and falls back gracefully if not installed.
 
   target_include_directories(pict PRIVATE
     ${LIBAVIF_INCLUDE_DIRS}
     ${LIBWEBP_INCLUDE_DIRS}
     ${LIBJPEG_INCLUDE_DIRS}
     ${LIBPNG_INCLUDE_DIRS}
-    ${LIBHEIF_INCLUDE_DIRS}
   )
   target_link_libraries(pict PRIVATE
     ${LIBAVIF_LIBRARIES}
@@ -98,15 +98,13 @@ else()
     ${LIBWEBPDEMUX_LIBRARIES}
     ${LIBJPEG_LIBRARIES}
     ${LIBPNG_LIBRARIES}
-    ${LIBHEIF_LIBRARIES}
-    m pthread
+    m pthread dl
   )
   target_link_directories(pict PRIVATE
     ${LIBAVIF_LIBRARY_DIRS}
     ${LIBWEBP_LIBRARY_DIRS}
     ${LIBJPEG_LIBRARY_DIRS}
     ${LIBPNG_LIBRARY_DIRS}
-    ${LIBHEIF_LIBRARY_DIRS}
   )
 endif()
 
@@ -122,5 +120,5 @@ if(NOT WIN32)
   message(STATUS "libwebp:  ${LIBWEBP_VERSION}")
   message(STATUS "libjpeg:  ${LIBJPEG_VERSION}")
   message(STATUS "libpng:   ${LIBPNG_VERSION}")
-  message(STATUS "libheif:  ${LIBHEIF_VERSION}")
+  message(STATUS "libheif:  runtime dlopen (optional)")
 endif()

@@ -1,34 +1,110 @@
 /*
- * heic_decode.c — libheif C bridge for HEIC/HEIF decoding
+ * heic_decode.c — runtime-dlopen bridge for libheif
  *
- * Converts HEIC/HEIF bitstream to raw RGB8/RGBA8 pixel data.
- * Decode-only (no encode). HEVC patent applies only to the bitstream;
- * decoding open-source use is accepted practice (VLC, ImageMagick, etc.).
+ * libheif is loaded lazily at first use via dlopen(). If the library is not
+ * installed on the user's machine, pict_heic_decode() returns -1 without
+ * crashing, and the rest of zenpix continues to work normally.
  *
- * Exported symbols:
- *   pict_heic_decode      — decode HEIC bytes → raw pixels (malloc'd)
- *   pict_heic_decode_free — free output from pict_heic_decode
+ * No link-time dependency on libheif — libpict.{dylib,so} does not list
+ * libheif in its NEEDED/LC_LOAD_DYLIB entries.
  */
 
+#include <dlfcn.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libheif/heif.h>
 
-/*
- * Decode HEIC/HEIF bitstream to raw pixel data.
- *
- *   src      — HEIC bitstream bytes
- *   src_len  — byte length of src
- *   out_data — set to newly-allocated pixel buffer (RGB or RGBA, 8-bit, row-major)
- *   out_w    — image width in pixels
- *   out_h    — image height in pixels
- *   out_ch   — channels (3=RGB, 4=RGBA)
- *
- * Returns 0 on success, -1 on failure.
- * On success, *out_data must be freed with pict_heic_decode_free().
- */
+/* ── Minimal libheif ABI types (stable since libheif 1.x) ─────────────────
+ * We define our own to avoid a build-time header dependency.
+ * Integer values match the libheif public API. */
+
+typedef struct heif_context     heif_context;
+typedef struct heif_image_handle heif_image_handle;
+typedef struct heif_image       heif_image;
+
+typedef struct {
+    int         code;      /* 0 = heif_error_Ok */
+    int         subcode;
+    const char *message;
+} heif_error_t;
+
+/* heif_colorspace */
+#define HEIF_COLORSPACE_RGB       1
+/* heif_chroma */
+#define HEIF_CHROMA_INTERLEAVED_RGB  10
+#define HEIF_CHROMA_INTERLEAVED_RGBA 11
+/* heif_channel */
+#define HEIF_CHANNEL_INTERLEAVED  10
+
+/* ── Function pointer table ────────────────────────────────────────────── */
+typedef struct {
+    heif_context*       (*context_alloc)(void);
+    void                (*context_free)(heif_context*);
+    heif_error_t        (*context_read_from_memory_without_copy)(
+                             heif_context*, const void*, size_t, const void*);
+    heif_error_t        (*context_get_primary_image_handle)(
+                             heif_context*, heif_image_handle**);
+    int                 (*image_handle_has_alpha_channel)(const heif_image_handle*);
+    heif_error_t        (*decode_image)(
+                             const heif_image_handle*, heif_image**,
+                             int /*colorspace*/, int /*chroma*/, const void*);
+    const uint8_t*      (*image_get_plane_readonly)(
+                             const heif_image*, int /*channel*/, int*);
+    int                 (*image_handle_get_width)(const heif_image_handle*);
+    int                 (*image_handle_get_height)(const heif_image_handle*);
+    void                (*image_release)(heif_image*);
+    void                (*image_handle_release)(heif_image_handle*);
+} HeifFuncs;
+
+static HeifFuncs        g_heif       = {0};
+static int              g_available  = 0;
+static pthread_once_t   g_once       = PTHREAD_ONCE_INIT;
+
+static void try_load_heif(void) {
+    static const char *candidates[] = {
+#ifdef __APPLE__
+        "libheif.dylib",
+        "libheif.1.dylib",
+        "/opt/homebrew/lib/libheif.dylib",
+        "/usr/local/lib/libheif.dylib",
+#else
+        "libheif.so.1",
+        "libheif.so",
+#endif
+        NULL,
+    };
+
+    void *lib = NULL;
+    for (int i = 0; candidates[i]; i++) {
+        lib = dlopen(candidates[i], RTLD_LAZY | RTLD_LOCAL);
+        if (lib) break;
+    }
+    if (!lib) return;
+
+#define LOAD(fn) \
+    g_heif.fn = (typeof(g_heif.fn))dlsym(lib, "heif_" #fn); \
+    if (!g_heif.fn) return;
+
+    LOAD(context_alloc)
+    LOAD(context_free)
+    LOAD(context_read_from_memory_without_copy)
+    LOAD(context_get_primary_image_handle)
+    LOAD(image_handle_has_alpha_channel)
+    LOAD(decode_image)
+    LOAD(image_get_plane_readonly)
+    LOAD(image_handle_get_width)
+    LOAD(image_handle_get_height)
+    LOAD(image_release)
+    LOAD(image_handle_release)
+#undef LOAD
+
+    g_available = 1;
+}
+
+/* ── Public API ─────────────────────────────────────────────────────────── */
+
 int pict_heic_decode(
     const uint8_t *src,
     size_t         src_len,
@@ -37,71 +113,64 @@ int pict_heic_decode(
     uint32_t      *out_h,
     uint32_t      *out_ch)
 {
+    pthread_once(&g_once, try_load_heif);
+    if (!g_available) return -1;
     if (!src || !out_data || !out_w || !out_h || !out_ch || src_len == 0) return -1;
 
-    struct heif_context *ctx = heif_context_alloc();
+    heif_context *ctx = g_heif.context_alloc();
     if (!ctx) return -1;
 
-    struct heif_error err;
-    err = heif_context_read_from_memory_without_copy(ctx, src, src_len, NULL);
-    if (err.code != heif_error_Ok) {
-        heif_context_free(ctx);
-        return -1;
-    }
+    heif_error_t err;
+    err = g_heif.context_read_from_memory_without_copy(ctx, src, src_len, NULL);
+    if (err.code != 0) { g_heif.context_free(ctx); return -1; }
 
-    struct heif_image_handle *handle = NULL;
-    err = heif_context_get_primary_image_handle(ctx, &handle);
-    if (err.code != heif_error_Ok) {
-        heif_context_free(ctx);
-        return -1;
-    }
+    heif_image_handle *handle = NULL;
+    err = g_heif.context_get_primary_image_handle(ctx, &handle);
+    if (err.code != 0) { g_heif.context_free(ctx); return -1; }
 
-    int has_alpha = heif_image_handle_has_alpha_channel(handle);
+    int has_alpha = g_heif.image_handle_has_alpha_channel(handle);
     int channels  = has_alpha ? 4 : 3;
-    enum heif_chroma chroma = has_alpha
-        ? heif_chroma_interleaved_RGBA
-        : heif_chroma_interleaved_RGB;
+    int chroma    = has_alpha ? HEIF_CHROMA_INTERLEAVED_RGBA : HEIF_CHROMA_INTERLEAVED_RGB;
 
-    struct heif_image *img = NULL;
-    err = heif_decode_image(handle, &img, heif_colorspace_RGB, chroma, NULL);
-    if (err.code != heif_error_Ok) {
-        heif_image_handle_release(handle);
-        heif_context_free(ctx);
+    heif_image *img = NULL;
+    err = g_heif.decode_image(handle, &img, HEIF_COLORSPACE_RGB, chroma, NULL);
+    if (err.code != 0) {
+        g_heif.image_handle_release(handle);
+        g_heif.context_free(ctx);
         return -1;
     }
 
     int stride = 0;
-    const uint8_t *plane = heif_image_get_plane_readonly(img, heif_channel_interleaved, &stride);
+    const uint8_t *plane = g_heif.image_get_plane_readonly(img, HEIF_CHANNEL_INTERLEAVED, &stride);
     if (!plane) {
-        heif_image_release(img);
-        heif_image_handle_release(handle);
-        heif_context_free(ctx);
+        g_heif.image_release(img);
+        g_heif.image_handle_release(handle);
+        g_heif.context_free(ctx);
         return -1;
     }
 
-    int w = heif_image_handle_get_width(handle);
-    int h = heif_image_handle_get_height(handle);
+    int w = g_heif.image_handle_get_width(handle);
+    int h = g_heif.image_handle_get_height(handle);
 
     size_t row_bytes = (size_t)w * (size_t)channels;
     size_t total     = row_bytes * (size_t)h;
     uint8_t *buf = (uint8_t *)malloc(total);
     if (!buf) {
-        heif_image_release(img);
-        heif_image_handle_release(handle);
-        heif_context_free(ctx);
+        g_heif.image_release(img);
+        g_heif.image_handle_release(handle);
+        g_heif.context_free(ctx);
         return -1;
     }
 
-    /* stride may be larger than row_bytes due to alignment padding */
     for (int y = 0; y < h; y++) {
         memcpy(buf + (size_t)y * row_bytes,
                plane + (size_t)y * (size_t)stride,
                row_bytes);
     }
 
-    heif_image_release(img);
-    heif_image_handle_release(handle);
-    heif_context_free(ctx);
+    g_heif.image_release(img);
+    g_heif.image_handle_release(handle);
+    g_heif.context_free(ctx);
 
     *out_data = buf;
     *out_w    = (uint32_t)w;
