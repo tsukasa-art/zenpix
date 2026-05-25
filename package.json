@@ -22,7 +22,9 @@
   ],
   "scripts": {
     "build": "tsc && esbuild js/src/index.deno.ts --bundle=false --platform=neutral --format=esm --outfile=js/dist/index.deno.js && bun scripts/add-shebang.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "bench": "bun bench/bench.ts",
+    "bench:threads": "bun bench/bench-threads.ts"
   },
   "keywords": [
     "avif",
@@ -50,6 +52,7 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "esbuild": "^0.25.0",
+    "sharp": "^0.34.0",
     "typescript": "^5.8.0"
   },
   "engines": {

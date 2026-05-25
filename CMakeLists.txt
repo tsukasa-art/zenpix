@@ -9,7 +9,21 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 if(NOT MSVC)
-  set(CMAKE_C_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
+  # macOS: native is fine (local dev only). Linux: portable AVX2 baseline so
+  # CI-built binaries run on any x86-64 that has AVX2 (no AVX-512 required).
+  # Override: cmake -DZENPIX_MARCH_NATIVE=ON for a source build on the target machine.
+  if(APPLE)
+    set(_MARCH_FLAG "-march=native")
+  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    if(ZENPIX_MARCH_NATIVE)
+      set(_MARCH_FLAG "-march=native")
+    else()
+      set(_MARCH_FLAG "-march=x86-64-v3")
+    endif()
+  else()
+    set(_MARCH_FLAG "")
+  endif()
+  set(CMAKE_C_FLAGS_RELEASE "-O2 ${_MARCH_FLAG} -DNDEBUG")
   set(CMAKE_C_FLAGS_DEBUG   "-O0 -g -fsanitize=address,undefined")
 endif()
 

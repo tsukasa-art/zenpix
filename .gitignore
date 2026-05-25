@@ -5,3 +5,7 @@ build/
 *.dll
 js/dist/
 node_modules/
+test/fixtures/
+bench/results/
+website/dist/
+website/node_modules/
