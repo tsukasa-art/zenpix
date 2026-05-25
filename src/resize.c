@@ -10,6 +10,9 @@
 
 #include "pict_resize.h"
 
+#ifdef _WIN32
+#  define _USE_MATH_DEFINES
+#endif
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -26,6 +29,8 @@
 #ifndef _WIN32
 #  include <pthread.h>
 #endif
+
+static void *v_pass_chunk_run(void *arg);  /* forward declaration for Win32 wrapper */
 
 #ifdef _WIN32
 typedef HANDLE pict_thread_t;
