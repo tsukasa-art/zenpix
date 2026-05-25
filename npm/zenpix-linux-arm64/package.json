@@ -1,0 +1,13 @@
+{
+  "name": "zenpix-linux-arm64",
+  "version": "1.0.0",
+  "description": "zenpix native binary for Linux arm64",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["libpict.so", "LICENSE"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsukasa-art/zenpix.git"
+  }
+}

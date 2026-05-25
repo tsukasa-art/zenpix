@@ -1,0 +1,13 @@
+{
+  "name": "zenpix-win32-x64",
+  "version": "1.0.0",
+  "description": "zenpix native binary for Windows x64",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["libpict.dll", "LICENSE"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsukasa-art/zenpix.git"
+  }
+}

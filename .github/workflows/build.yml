@@ -135,3 +135,16 @@ jobs:
         with:
           name: libpict-win32-x64
           path: build/libpict.dll
+
+  # ── JS wrapper build (type-check + dist) ──────────────────────────────────
+  build-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install JS deps
+        run: bun install
+      - name: Build JS wrapper
+        run: bun run build

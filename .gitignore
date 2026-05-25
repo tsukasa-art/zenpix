@@ -3,3 +3,5 @@ build/
 *.dylib
 *.so
 *.dll
+js/dist/
+node_modules/
