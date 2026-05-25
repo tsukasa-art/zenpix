@@ -1,6 +1,6 @@
 # zenpix
 
-High-performance image processing library built in C. Decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes to WebP / AVIF / PNG with Lanczos-3 resizing. Works with Node.js, Bun, and Deno via FFI — no build tools required.
+High-quality, high-performance image processing library built in C. Decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes to WebP / AVIF / PNG with Lanczos-3 resizing. Works with Node.js, Bun, and Deno via FFI — no build tools required.
 
 **[日本語ドキュメント](./README.ja.md)**
 

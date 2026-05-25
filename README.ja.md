@@ -1,6 +1,6 @@
 # zenpix
 
-C 製の高速画像処理ライブラリです。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応（FFI 経由）。ビルド環境は不要です。
+C 製の高品質・高速画像処理ライブラリです。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応（FFI 経由）。ビルド環境は不要です。
 
 **npm:** [zenpix](https://www.npmjs.com/package/zenpix)（Node / Bun / Deno・ネイティブ）
 
@@ -55,6 +55,18 @@ npx zenpix icon.jpg favicon.png --remove-bg --round-corners full
 
 ## なぜ zenpix か
 
+### 画質が高い — 常に
+
+zenpix の AVIF エンコードは **YUV 4:4:4**（クロマサブサンプリングなし）を使用しています。Sharp のデフォルトは YUV 4:2:0 で、色差成分を 75% 間引きます。同じ `quality` 値でも、彩度の高い色・繊細なグラデーション・透過を含むイラストでは zenpix の出力のほうが色が正確に再現されます。アルファチャンネルは常にロスレスエンコード。
+
+| Sharp (quality=60) | zenpix (quality=60) |
+|:---:|:---:|
+| ![sharp](assets/sample_sharp.png) | ![zenpix](assets/sample_zenpix.png) |
+
+*パステル調ビーチイラスト。Sharp はニュアンス部分を間引いてファイルを小さくし、zenpix はやや大きくなる代わりに微妙なトーンを保持します。*
+
+### VPS では速い — イラスト系コンテンツに限り
+
 少コア VPS（2〜4 vCPU）でイラスト・キャラクター系の画像を扱う場合、zenpix は Sharp より **1.3〜1.6 倍高速**です。
 
 | フィクスチャ | FHD ratio | WQHD ratio | 4K ratio |
@@ -63,14 +75,6 @@ npx zenpix icon.jpg favicon.png --remove-bg --round-corners full
 | 厚塗り風景 | **1.62×** | **1.45×** | **1.63×** |
 
 *ratio = Sharp 中央値 ÷ zenpix 中央値（1 超なら zenpix が速い）。VPS: Ubuntu、2 vCPU。PNG → リサイズ → AVIF (quality=60, speed=6)。[詳細なベンチマーク →](./docs/reference/benchmarks.md)*
-
-速度だけでなく、同じ `quality` 設定でも zenpix はより多くの視覚的ディテールを保持します。イラスト特有の繊細なグラデーションや色の微妙なニュアンスが失われにくい傾向があります。
-
-| Sharp (quality=60) | zenpix (quality=60) |
-|:---:|:---:|
-| ![sharp](assets/sample_sharp.png) | ![zenpix](assets/sample_zenpix.png) |
-
-*パステル調ビーチイラスト。Sharp はニュアンス部分を間引いてファイルを小さくし、zenpix はやや大きくなる代わりに微妙なトーンを保持します。*
 
 ---
 
