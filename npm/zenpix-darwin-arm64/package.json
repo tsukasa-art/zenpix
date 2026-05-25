@@ -1,0 +1,13 @@
+{
+  "name": "zenpix-darwin-arm64",
+  "version": "1.0.0",
+  "description": "zenpix native binary for macOS Apple Silicon (arm64)",
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "files": ["libpict.dylib", "LICENSE"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsukasa-art/zenpix.git"
+  }
+}

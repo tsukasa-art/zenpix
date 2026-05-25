@@ -1,0 +1,61 @@
+{
+  "name": "zenpix",
+  "version": "1.0.0",
+  "description": "High-performance image processing engine. Decode, resize, WebP/AVIF/PNG encode.",
+  "type": "module",
+  "main": "js/dist/index.js",
+  "types": "js/dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./js/dist/index.d.ts",
+      "import": "./js/dist/index.js"
+    },
+    "./deno": "./js/dist/index.deno.js"
+  },
+  "bin": {
+    "zenpix": "js/dist/cli.js"
+  },
+  "files": [
+    "js/dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc && esbuild js/src/index.deno.ts --bundle=false --platform=neutral --format=esm --outfile=js/dist/index.deno.js && bun scripts/add-shebang.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "avif",
+    "webp",
+    "image",
+    "resize",
+    "native"
+  ],
+  "author": "月村つかさ",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsukasa-art/zenpix.git"
+  },
+  "optionalDependencies": {
+    "zenpix-darwin-arm64": "1.0.0",
+    "zenpix-darwin-x64": "1.0.0",
+    "zenpix-linux-x64": "1.0.0",
+    "zenpix-linux-arm64": "1.0.0",
+    "zenpix-win32-x64": "1.0.0"
+  },
+  "dependencies": {
+    "koffi": "^2.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "koffi"]
+  }
+}
