@@ -38,7 +38,10 @@ endif()
 
 # ── Shared library: libpict ────────────────────────────────────────────────
 add_library(pict SHARED ${PICT_SOURCES})
-set_target_properties(pict PROPERTIES PREFIX "lib")
+set_target_properties(pict PROPERTIES
+  PREFIX "lib"
+  WINDOWS_EXPORT_ALL_SYMBOLS ON
+)
 
 target_include_directories(pict PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
