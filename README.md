@@ -57,6 +57,18 @@ npx zenpix icon.jpg favicon.png --remove-bg --round-corners full
 
 ## Why zenpix?
 
+### Better quality — always
+
+zenpix encodes AVIF using **YUV 4:4:4** (full chroma, no subsampling). Sharp defaults to YUV 4:2:0, which discards 75% of chroma information. For illustration and character art with saturated colours and fine gradients, the difference is visible at the same `quality` setting. Alpha channels are always encoded losslessly.
+
+| Sharp (quality=60) | zenpix (quality=60) |
+|:---:|:---:|
+| ![sharp](assets/sample_sharp.png) | ![zenpix](assets/sample_zenpix.png) |
+
+*Pastel beach illustration. Sharp produces a smaller file by discarding subtle tonal nuances; zenpix retains them at a slightly larger size.*
+
+### Faster on VPS — for illustration content
+
 On low-core VPS environments (2–4 vCPUs), zenpix outperforms Sharp on complex illustration and character content by **1.3–1.6×** in wall-clock time.
 
 | Fixture | FHD ratio | WQHD ratio | 4K ratio |
@@ -65,14 +77,6 @@ On low-core VPS environments (2–4 vCPUs), zenpix outperforms Sharp on complex 
 | Oil-paint landscape | **1.62×** | **1.45×** | **1.63×** |
 
 *ratio = Sharp ÷ zenpix median (>1 means zenpix is faster). VPS: Ubuntu, 2 vCPU. Pipeline: PNG → resize → AVIF (quality=60, speed=6). [Full benchmark →](./docs/reference/benchmarks.md)*
-
-Beyond speed, zenpix preserves more visual detail at the same `quality` setting — subtle gradients and color transitions are retained rather than discarded.
-
-| Sharp (quality=60) | zenpix (quality=60) |
-|:---:|:---:|
-| ![sharp](assets/sample_sharp.png) | ![zenpix](assets/sample_zenpix.png) |
-
-*Pastel beach illustration. Sharp produces a smaller file by discarding subtle tonal nuances; zenpix retains them at a slightly larger size.*
 
 ---
 
