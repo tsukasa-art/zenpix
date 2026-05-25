@@ -3,6 +3,7 @@
  *
  * Supported operations:
  *   decode()     — JPEG / PNG / WebP / AVIF / GIF → raw pixels（埋め込み ICC があれば返す）
+ *   decodeHeic() — HEIC / HEIF → raw pixels（macOS / Linux のみ）
  *   resize()     — Lanczos-3 high-quality resize (stretch / contain / cover)
  *   encodeWebP() — WebP encode (lossy / lossless)
  *   encodeAvif() — AVIF encode (requires libavif on the system)
@@ -120,6 +121,22 @@ const _round_corners = _lib.func(
 );
 
 const _free = _lib.func("void pict_free_buffer(uint8 *ptr, uint64 len)");
+
+// HEIC decode is not available on Windows (heic_decode.c excluded from that build).
+// Lazy-bind so the module loads cleanly even when the symbol is absent.
+let _heic_decode_fn: ((...args: unknown[]) => unknown) | null | undefined = undefined;
+function getHeicDecode() {
+  if (_heic_decode_fn === undefined) {
+    try {
+      _heic_decode_fn = _lib.func(
+        "int pict_heic_decode(const uint8 *src, uint64 src_len, _Out_ uint8 **out_data, uint32 *out_w, uint32 *out_h, uint32 *out_ch)"
+      );
+    } catch {
+      _heic_decode_fn = null;
+    }
+  }
+  return _heic_decode_fn;
+}
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
@@ -293,6 +310,38 @@ export function decode(input: Buffer | Uint8Array): ImageBuffer {
   }
 
   return out;
+}
+
+/**
+ * Decode a HEIC or HEIF buffer into raw pixel data.
+ * Available on macOS and Linux only (Windows build excludes libheif).
+ * @throws {Error} if the platform does not support HEIC decode, or if decoding fails
+ */
+export function decodeHeic(input: Buffer | Uint8Array): ImageBuffer {
+  const fn = getHeicDecode();
+  if (!fn) throw new Error("zenpix: HEIC decode is not available on this platform");
+
+  const buf = Buffer.isBuffer(input) ? input : Buffer.from(input);
+  const outDataSlot: unknown[] = [null];
+  const outW  = new Uint32Array(1);
+  const outH  = new Uint32Array(1);
+  const outCh = new Uint32Array(1);
+
+  const rc = fn(buf, BigInt(buf.byteLength), outDataSlot, outW, outH, outCh) as number;
+  if (rc !== 0 || outDataSlot[0] === null) {
+    throw new Error("zenpix: HEIC decode failed (unsupported format or corrupt data)");
+  }
+
+  const w = outW[0]!;
+  const h = outH[0]!;
+  const ch = outCh[0]!;
+
+  return {
+    data:     copyAndFree(outDataSlot[0], BigInt(w * h * ch)),
+    width:    w,
+    height:   h,
+    channels: ch,
+  };
 }
 
 /**

@@ -4,6 +4,7 @@
  *
  * Supported operations:
  *   decode()     — JPEG / PNG / WebP / AVIF / GIF → raw pixels（埋め込み ICC があれば返す）
+ *   decodeHeic() — HEIC / HEIF → raw pixels（macOS / Linux のみ）
  *   resize()     — Lanczos-3 high-quality resize (stretch / contain / cover)
  *   encodeWebP() — WebP encode (lossy / lossless)
  *   encodeAvif() — AVIF encode
@@ -125,6 +126,22 @@ const _lib = Deno.dlopen(libPath, {
     result: "void",
   },
 });
+
+// HEIC decode is absent on Windows — load in a separate try-catch so the module
+// still initialises cleanly when the symbol is missing.
+let _heicLib: ReturnType<typeof Deno.dlopen<{
+  pict_heic_decode: { parameters: ["pointer","u64","pointer","pointer","pointer","pointer"]; result: "i32" };
+}>> | null = null;
+try {
+  _heicLib = Deno.dlopen(libPath, {
+    pict_heic_decode: {
+      parameters: ["pointer", "u64", "pointer", "pointer", "pointer", "pointer"],
+      result: "i32",
+    },
+  });
+} catch {
+  // not available on this platform (e.g., Windows)
+}
 
 // ── Internal helper ───────────────────────────────────────────────────────────
 
@@ -258,6 +275,45 @@ export function decode(input: Uint8Array): ImageBuffer {
   }
 
   return out;
+}
+
+export function decodeHeic(input: Uint8Array): ImageBuffer {
+  if (_heicLib === null) {
+    throw new Error("zenpix: HEIC decode is not available on this platform");
+  }
+
+  const outDataBuf = new BigUint64Array(1);
+  const outW  = new Uint32Array(1);
+  const outH  = new Uint32Array(1);
+  const outCh = new Uint32Array(1);
+
+  const rc = _heicLib.symbols.pict_heic_decode(
+    Deno.UnsafePointer.of(input),
+    BigInt(input.byteLength),
+    Deno.UnsafePointer.of(outDataBuf),
+    Deno.UnsafePointer.of(outW),
+    Deno.UnsafePointer.of(outH),
+    Deno.UnsafePointer.of(outCh),
+  );
+  if (rc !== 0) {
+    throw new Error("zenpix: HEIC decode failed (unsupported format or corrupt data)");
+  }
+
+  const dataPtr = Deno.UnsafePointer.create(outDataBuf[0]);
+  if (dataPtr === null) {
+    throw new Error("zenpix: HEIC decode failed (null output)");
+  }
+
+  const w  = outW[0];
+  const h  = outH[0];
+  const ch = outCh[0];
+
+  return {
+    data:     copyAndFree(dataPtr, BigInt(w * h * ch)),
+    width:    w,
+    height:   h,
+    channels: ch,
+  };
 }
 
 export function resize(image: ImageBuffer, options: ResizeOptions): ImageBuffer {

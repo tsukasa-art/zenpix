@@ -1,0 +1,371 @@
+/* ============================================
+   zenpix × Starlight — dark-only cyan theme
+   ============================================ */
+
+:root,
+:root[data-theme='dark'],
+:root[data-theme='light'] {
+  /* Accent: cyan (pixel blocks) */
+  --sl-color-accent-low: rgba(34, 211, 238, 0.12);
+  --sl-color-accent: #22d3ee;
+  --sl-color-accent-high: #e0f9fd;
+
+  /* Gray scale */
+  --sl-color-white: #f0f9ff;
+  --sl-color-gray-1: #e0f2fe;
+  --sl-color-gray-2: #bae6fd;
+  --sl-color-gray-3: #7dd3fc;
+  --sl-color-gray-4: #4a7fa0;
+  --sl-color-gray-5: #1e3a4f;
+  --sl-color-gray-6: #112233;
+  --sl-color-black: #0b1929;
+
+  /* Surfaces — dark navy matching logo */
+  --sl-color-bg: #0b1929;
+  --sl-color-bg-nav: rgba(11, 25, 41, 0.95);
+  --sl-color-bg-sidebar: #0d1f33;
+  --sl-color-bg-inline-code: rgba(34, 211, 238, 0.1);
+
+  /* Text */
+  --sl-color-text: #cbd5e1;
+  --sl-color-text-accent: #22d3ee;
+  --sl-color-text-invert: #0b1929;
+
+  /* Hairlines */
+  --sl-color-hairline-light: rgba(34, 211, 238, 0.06);
+  --sl-color-hairline: rgba(34, 211, 238, 0.15);
+  --sl-color-hairline-shade: rgba(34, 211, 238, 0.25);
+
+  /* Gold secondary (zen circle) */
+  --zp-gold: #c5a059;
+  --zp-gold-low: rgba(197, 160, 89, 0.12);
+
+  /* Asides */
+  --sl-color-blue-low: rgba(34, 211, 238, 0.1);
+  --sl-color-blue: #22d3ee;
+  --sl-color-blue-high: #e0f9fd;
+
+  --sl-color-green-low: rgba(74, 186, 140, 0.12);
+  --sl-color-green: #4aba8c;
+  --sl-color-green-high: #d8f5ea;
+
+  --sl-color-orange-low: rgba(217, 119, 6, 0.12);
+  --sl-color-orange: #d97706;
+  --sl-color-orange-high: #fef3c7;
+
+  --sl-color-red-low: rgba(220, 38, 38, 0.12);
+  --sl-color-red: #ef4444;
+  --sl-color-red-high: #fee2e2;
+}
+
+/* ---- Typography ---- */
+:root {
+  --sl-font: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --sl-font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+}
+
+/* ---- Hide theme toggle ---- */
+starlight-theme-select {
+  display: none !important;
+}
+
+/* ---- Header ---- */
+header.header {
+  background: rgba(11, 25, 41, 0.92) !important;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.15) !important;
+  backdrop-filter: blur(20px);
+}
+
+.site-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: var(--sl-color-accent-high) !important;
+}
+
+.site-title img {
+  height: 2rem;
+  width: auto !important;
+  object-fit: contain;
+}
+
+/* ---- Sidebar ---- */
+.sidebar-content {
+  background: var(--sl-color-bg-sidebar);
+}
+
+nav.sidebar a[aria-current='page'] {
+  background: rgba(34, 211, 238, 0.18) !important;
+  color: #22d3ee !important;
+  border-left: 3px solid #22d3ee !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+/* ---- Right TOC ---- */
+starlight-toc a {
+  font-size: 0.82rem;
+  color: var(--sl-color-gray-3);
+  line-height: 1.5;
+}
+
+starlight-toc a[aria-current='true'] {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-left: 2px solid #22d3ee !important;
+  padding-left: 0.5rem;
+  background: rgba(34, 211, 238, 0.08);
+  border-radius: 0 4px 4px 0;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 72rem) {
+  .mobile-preferences button,
+  .social-icons a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 50rem) {
+  /*
+   * Mobile font size policy:
+   * Body: 17px (iOS HIG minimum for body text)
+   * Code: 14px (safe floor from iOS 11pt / Android 11sp)
+   * Touch targets: 48px min-height (Android Material 3, strictest)
+   */
+
+  .sl-markdown-content {
+    font-size: 1.0625rem; /* 17px */
+    line-height: 1.8;
+  }
+
+  .sl-markdown-content h2 {
+    font-size: 1.35rem;
+    margin-top: 2.25rem;
+  }
+
+  .sl-markdown-content h3 {
+    font-size: 1.15rem;
+  }
+
+  .sl-markdown-content p,
+  .sl-markdown-content li {
+    font-size: 1.0625rem; /* 17px */
+  }
+
+  /* Code blocks: 左右に余白を確保（edge-to-edge ではなく margin 付き） */
+  .expressive-code {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .expressive-code .frame {
+    border-radius: 8px !important;
+  }
+
+  .expressive-code pre {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .expressive-code pre,
+  .expressive-code code {
+    font-size: 0.875rem !important; /* 14px */
+    line-height: 1.65;
+  }
+
+  :not(pre) > code {
+    font-size: 0.875em !important; /* 14px */
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Tables: wrapper がスクロールを担う */
+  .table-scroll-wrapper {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .sl-markdown-content table {
+    font-size: 0.875rem; /* 14px */
+  }
+
+  .sl-markdown-content td:first-child {
+    white-space: nowrap;
+  }
+
+  .sl-markdown-content th,
+  .sl-markdown-content td {
+    padding: 0.875rem 1rem !important;
+  }
+
+  /* Mobile TOC ドロップダウン: 48px タッチターゲット + 読みやすいフォント */
+  mobile-starlight-toc details summary {
+    font-size: 1rem !important;     /* 16px */
+    min-height: 48px !important;
+    padding: 0.75rem 1rem !important;
+    font-weight: 600;
+  }
+
+  mobile-starlight-toc ul li a {
+    font-size: 1rem !important;     /* 16px */
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* breadcrumb (目次 > ページ名) */
+  .breadcrumbs,
+  [aria-label="breadcrumbs"] {
+    font-size: 0.9375rem !important; /* 15px */
+  }
+
+  /* Touch targets: 48px (Android Material 3) */
+  nav.sidebar a,
+  header a,
+  header button {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* ---- Content ---- */
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4 {
+  font-family: 'Outfit', sans-serif;
+}
+
+.sl-markdown-content h1 {
+  color: var(--sl-color-accent);
+}
+
+.sl-markdown-content h2 {
+  color: var(--zp-gold);
+}
+
+.sl-markdown-content a {
+  color: var(--sl-color-accent);
+  text-decoration: underline;
+  text-decoration-color: rgba(34, 211, 238, 0.4);
+  text-underline-offset: 3px;
+}
+
+.sl-markdown-content a:hover {
+  color: var(--sl-color-accent-high);
+}
+
+/* ---- Code blocks ---- */
+.expressive-code .frame {
+  border: 1px solid rgba(34, 211, 238, 0.18) !important;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.expressive-code .frame .header {
+  background: rgba(11, 25, 41, 0.95) !important;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.12) !important;
+}
+
+.expressive-code .frame .title:empty {
+  display: none !important;
+}
+
+.expressive-code .frame .title {
+  color: rgba(34, 211, 238, 0.7) !important;
+  background: transparent !important;
+  font-family: var(--sl-font-mono);
+  font-size: 0.82rem;
+}
+
+.expressive-code .frame pre {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.expressive-code .copy {
+  display: none !important;
+}
+
+/* ---- Inline code ---- */
+:not(pre) > code {
+  background: rgba(34, 211, 238, 0.1) !important;
+  color: #67e8f9 !important;
+  border: 1px solid rgba(34, 211, 238, 0.22) !important;
+  border-radius: 5px;
+  padding: 0.15em 0.45em;
+  font-family: var(--sl-font-mono);
+  font-size: 0.875em;
+}
+
+/* ---- Tables ---- */
+/*
+ * ラッパーはスクロールのみを担う。border / border-radius / overflow は table 本体に置く。
+ * border-collapse:separate + overflow:hidden on <table> が最も信頼できる角丸クリップ。
+ * clip-path を廃止した理由: inset(0) の基準が border-box 外縁のためサブピクセル差で
+ * 右ボーダーが欠けるバグが発生した。
+ */
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 3rem;
+}
+
+.sl-markdown-content table {
+  display: table; /* override @layer starlight.content: display:block */
+  width: 100%;
+  min-width: 480px;
+  background: rgba(11, 25, 41, 0.95);
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.sl-markdown-content th {
+  padding: 1rem 1.25rem !important;
+  text-align: left;
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--sl-color-accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid rgba(34, 211, 238, 0.18);
+  white-space: nowrap;
+}
+
+.sl-markdown-content td {
+  padding: 1rem 1.25rem !important;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.08);
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  word-break: break-word;
+}
+
+.sl-markdown-content tr:last-child td {
+  border-bottom: none;
+}
+
+.sl-markdown-content tr:hover td {
+  background: rgba(34, 211, 238, 0.03);
+}
+
+/* ---- Pixel grid background ---- */
+.page {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-attachment: fixed;
+}
