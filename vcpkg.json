@@ -1,0 +1,10 @@
+{
+  "name": "zenpix",
+  "version": "0.1.0",
+  "dependencies": [
+    "libavif",
+    "libwebp",
+    "libjpeg-turbo",
+    "libpng"
+  ]
+}

@@ -8,7 +8,7 @@
 import { dlopen, FFIType, ptr, toArrayBuffer } from "bun:ffi";
 import { join } from "path";
 
-const ext = process.platform === "darwin" ? "dylib" : "so";
+const ext = process.platform === "darwin" ? "dylib" : process.platform === "win32" ? "dll" : "so";
 const C_LIB = join(import.meta.dir, `../build/libpict.${ext}`);
 
 const lib = dlopen(C_LIB, {

@@ -2,47 +2,133 @@ name: Build & Test
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-
+  # ── Linux x64 ──────────────────────────────────────────────────────────────
+  build-linux-x64:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y \
-            cmake pkg-config \
-            libavif-dev libwebp-dev \
-            libjpeg-dev libpng-dev libheif-dev
-
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install libavif webp jpeg-turbo libpng libheif
-
+          sudo apt-get install -y cmake pkg-config \
+            libavif-dev libwebp-dev libjpeg-dev libpng-dev libheif-dev
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-
       - name: Build
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --parallel
-
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
-
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libpict-linux-x64
+          path: build/libpict.so
+
+  # ── Linux arm64 ────────────────────────────────────────────────────────────
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake pkg-config \
+            libavif-dev libwebp-dev libjpeg-dev libpng-dev libheif-dev
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+      - name: Test — Lanczos-3 precision
+        run: bun run test/lanczos_precision.ts
+      - name: Test — ops precision
+        run: bun run test/ops_precision.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libpict-linux-arm64
+          path: build/libpict.so
+
+  # ── macOS arm64 (Apple Silicon) ────────────────────────────────────────────
+  build-darwin-arm64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install libavif webp jpeg-turbo libpng libheif
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+      - name: Test — Lanczos-3 precision
+        run: bun run test/lanczos_precision.ts
+      - name: Test — ops precision
+        run: bun run test/ops_precision.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libpict-darwin-arm64
+          path: build/libpict.dylib
+
+  # ── macOS x64 (Intel) ──────────────────────────────────────────────────────
+  build-darwin-x64:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install libavif webp jpeg-turbo libpng libheif
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+      - name: Test — Lanczos-3 precision
+        run: bun run test/lanczos_precision.ts
+      - name: Test — ops precision
+        run: bun run test/ops_precision.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libpict-darwin-x64
+          path: build/libpict.dylib
+
+  # ── Windows x64 ────────────────────────────────────────────────────────────
+  build-windows-x64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+          key: vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}-v1
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install libavif:x64-windows libwebp:x64-windows libjpeg-turbo:x64-windows libpng:x64-windows
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Build
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows
+          cmake --build build --config Release --parallel
+      - name: Test — Lanczos-3 precision
+        run: bun run test/lanczos_precision.ts
+      - name: Test — ops precision
+        run: bun run test/ops_precision.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: libpict-win32-x64
+          path: build/libpict.dll
