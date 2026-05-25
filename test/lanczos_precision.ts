@@ -11,7 +11,7 @@ import { dlopen, FFIType, ptr, toArrayBuffer } from "bun:ffi";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const ext = process.platform === "darwin" ? "dylib" : "so";
+const ext = process.platform === "darwin" ? "dylib" : process.platform === "win32" ? "dll" : "so";
 const C_LIB = join(import.meta.dir, `../build/libpict.${ext}`);
 const REF_PATH = join(import.meta.dir, "reference_data.bin");
 const MAX_DIFF = 1;

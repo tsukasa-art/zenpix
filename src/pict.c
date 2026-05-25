@@ -81,11 +81,13 @@ int pict_gif_decode(
     uint8_t **out_data, uint32_t *out_width, uint32_t *out_height);
 void pict_gif_decode_free(uint8_t *data);
 
+#ifndef PICT_DISABLE_HEIC
 /* heic_decode.c */
 int pict_heic_decode(
     const uint8_t *src, size_t src_len,
     uint8_t **out_data, uint32_t *out_width, uint32_t *out_height, int *out_channels);
 void pict_heic_decode_free(uint8_t *data);
+#endif
 
 /* resize.c */
 int pict_resize_lanczos3(
@@ -214,11 +216,15 @@ uint8_t *pict_decode_v3(
         break;
     }
     case FMT_HEIC: {
+#ifdef PICT_DISABLE_HEIC
+        return NULL;
+#else
         uint32_t w32 = 0, h32 = 0; int ich = 0;
         int rc = pict_heic_decode(data, len, &pixels, &w32, &h32, &ich);
         if (rc != 0 || !pixels) return NULL;
         w = w32; h = h32; ch = (unsigned int)ich;
         break;
+#endif
     }
     default:
         return NULL;

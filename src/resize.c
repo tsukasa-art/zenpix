@@ -17,11 +17,26 @@
 
 #ifdef __APPLE__
 #  include <sys/sysctl.h>
+#elif defined(_WIN32)
+#  include <windows.h>
 #else
 #  include <unistd.h>
 #endif
 
-#include <pthread.h>
+#ifndef _WIN32
+#  include <pthread.h>
+#endif
+
+#ifdef _WIN32
+typedef HANDLE pict_thread_t;
+static DWORD WINAPI vpass_thread_fn(LPVOID arg) { v_pass_chunk_run(arg); return 0; }
+#  define PICT_THREAD_CREATE(th, arg) ((*(th)) = CreateThread(NULL, 0, vpass_thread_fn, (arg), 0, NULL), (*(th)) == NULL ? -1 : 0)
+#  define PICT_THREAD_JOIN(th)        (WaitForSingleObject((th), INFINITE), CloseHandle(th))
+#else
+typedef pthread_t pict_thread_t;
+#  define PICT_THREAD_CREATE(th, arg) pthread_create((th), NULL, v_pass_chunk_run, (arg))
+#  define PICT_THREAD_JOIN(th)        pthread_join((th), NULL)
+#endif
 
 /* ── Lanczos-3 kernel ────────────────────────────────────────────────────── */
 
@@ -125,7 +140,11 @@ static void *v_pass_chunk_run(void *arg) {
 }
 
 static uint32_t cpu_count(void) {
-#ifdef __APPLE__
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return (uint32_t)(si.dwNumberOfProcessors > 0 ? si.dwNumberOfProcessors : 1);
+#elif defined(__APPLE__)
     int n = 1;
     size_t sz = sizeof(n);
     sysctlbyname("hw.logicalcpu", &n, &sz, NULL, 0);
@@ -174,8 +193,8 @@ int pict_resize_lanczos3(
                        scale_y, support_y, row_stride);
         }
     } else {
-        VPassChunk *chunks = (VPassChunk *)malloc(actual_threads * sizeof(VPassChunk));
-        pthread_t   *threads = (pthread_t *)malloc(actual_threads * sizeof(pthread_t));
+        VPassChunk    *chunks  = (VPassChunk    *)malloc(actual_threads * sizeof(VPassChunk));
+        pict_thread_t *threads = (pict_thread_t *)malloc(actual_threads * sizeof(pict_thread_t));
         if (!chunks || !threads) {
             free(chunks); free(threads); free(inter); return -2;
         }
@@ -195,10 +214,10 @@ int pict_resize_lanczos3(
             };
         }
         for (uint32_t i = 0; i + 1 < actual_threads; i++)
-            pthread_create(&threads[i], NULL, v_pass_chunk_run, &chunks[i]);
+            PICT_THREAD_CREATE(&threads[i], &chunks[i]);
         v_pass_chunk_run(&chunks[actual_threads - 1]);
         for (uint32_t i = 0; i + 1 < actual_threads; i++)
-            pthread_join(threads[i], NULL);
+            PICT_THREAD_JOIN(threads[i]);
         free(chunks);
         free(threads);
     }
