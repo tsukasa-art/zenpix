@@ -49,9 +49,13 @@ void pict_webp_icc_free(unsigned char *icc);
 
 /* webp_encode.c */
 int pict_webp_encode(
-    const uint8_t *pixels, uint32_t width, uint32_t height, int channels,
+    const uint8_t *pixels, int width, int height, int channels,
     float quality, int lossless,
-    const uint8_t *icc, size_t icc_len,
+    uint8_t **out_data, size_t *out_size);
+int pict_webp_encode_with_icc(
+    const uint8_t *pixels, int width, int height, int channels,
+    float quality, int lossless,
+    const uint8_t *icc, unsigned int icc_len,
     uint8_t **out_data, size_t *out_size);
 void pict_webp_free(uint8_t *data);
 
@@ -73,9 +77,9 @@ void pict_avif_free(uint8_t *data);
 
 /* gif_decode.c */
 int pict_gif_decode(
-    const unsigned char *src, int src_len,
-    unsigned char **out_data, int *out_width, int *out_height, int *out_channels);
-void pict_gif_decode_free(unsigned char *data);
+    const uint8_t *src, size_t src_len,
+    uint8_t **out_data, uint32_t *out_width, uint32_t *out_height);
+void pict_gif_decode_free(uint8_t *data);
 
 /* heic_decode.c */
 int pict_heic_decode(
@@ -203,10 +207,10 @@ uint8_t *pict_decode_v3(
         break;
     }
     case FMT_GIF: {
-        int iw = 0, ih = 0, ich = 0;
-        int rc = pict_gif_decode(data, (int)len, &pixels, &iw, &ih, &ich);
+        uint32_t gw = 0, gh = 0;
+        int rc = pict_gif_decode(data, len, &pixels, &gw, &gh);
         if (rc != 0 || !pixels) return NULL;
-        w = (unsigned int)iw; h = (unsigned int)ih; ch = (unsigned int)ich;
+        w = gw; h = gh; ch = 3; /* gif_decode always outputs RGB */
         break;
     }
     case FMT_HEIC: {
@@ -356,9 +360,16 @@ uint8_t *pict_encode_webp_v2(
     if (!pixels || !out_len || width == 0 || height == 0 || channels == 0) return NULL;
     uint8_t *out = NULL;
     size_t sz = 0;
-    if (pict_webp_encode(pixels, width, height, channels, quality, lossless,
-                         icc, icc_len, &out, &sz) != 0 || !out)
-        return NULL;
+    int rc;
+    if (icc != NULL && icc_len > 0) {
+        rc = pict_webp_encode_with_icc(pixels, (int)width, (int)height, (int)channels,
+                                       quality, lossless,
+                                       icc, (unsigned int)icc_len, &out, &sz);
+    } else {
+        rc = pict_webp_encode(pixels, (int)width, (int)height, (int)channels,
+                              quality, lossless, &out, &sz);
+    }
+    if (rc != 0 || !out) return NULL;
     *out_len = sz;
     return out;
 }
