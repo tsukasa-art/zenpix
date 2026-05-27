@@ -5,15 +5,15 @@ const { lang = 'ja' } = Astro.props;
 
 const t = lang === 'en' ? {
   ariaLabel:       'Select image',
-  uploadText:      'Drop image or click to select',
-  uploadHint:      'JPEG / PNG / WebP · up to 2MP (e.g. 1920×1080)',
+  uploadText:      'Drop or click to select',
+  uploadHint:      'JPEG / PNG / WebP · max 2MP',
   speedStd:        'Standard (speed=6)',
   speedFast:       'Fast (speed=10)',
   convertBtn:      'Convert',
   converting:      'Converting…',
   download:        'Download (.avif)',
   previewAlt:      'AVIF result',
-  wasmNote:        'Conversion runs entirely in your browser. No image is sent to a server.',
+  wasmNote:        'In-browser only. No data is sent to a server.',
   clickChange:     'Click to change',
   encodeFail:      'Encode failed',
   errorPrefix:     'Error: ',
@@ -29,15 +29,15 @@ const t = lang === 'en' ? {
   chromaNote:      'YUV 4:4:4 retains all color information. Canvas API uses YUV 4:2:0 (same as Sharp default), discarding 75% of chroma — noticeable on illustrations and vivid gradients.',
 } : {
   ariaLabel:       '画像を選択',
-  uploadText:      '画像をドロップ、またはクリックして選択',
-  uploadHint:      'JPEG / PNG / WebP · 2MP まで（例: 1920×1080）',
+  uploadText:      '画像をドロップまたはタップ',
+  uploadHint:      'JPEG / PNG / WebP · 2MP 以下',
   speedStd:        '標準 (speed=6)',
   speedFast:       '高速 (speed=10)',
   convertBtn:      '変換',
   converting:      '変換中…',
   download:        'ダウンロード (.avif)',
   previewAlt:      'AVIF変換結果',
-  wasmNote:        '変換はすべてブラウザ内で実行されます。画像はサーバーに送信されません。',
+  wasmNote:        'ブラウザ内で完結。サーバーには送信されません。',
   clickChange:     'クリックで変更',
   encodeFail:      'エンコード失敗',
   errorPrefix:     'エラー: ',
@@ -373,6 +373,11 @@ const t = lang === 'en' ? {
   .cmp-c-stats   { grid-column: 2; grid-row: 2; }
   .cmp-c-preview { grid-column: 2; grid-row: 3; }
   .cmp-c-dl      { grid-column: 2; grid-row: 4; }
+
+  @media (max-width: 600px) {
+    .upload-area { padding: 1.5rem 0.5rem; }
+    .upload-hint { font-size: 0.8rem; }
+  }
 
   /* モバイル: 1列 auto 配置（HTML順 = zenpix → canvas） */
   @media (max-width: 600px) {
