@@ -3,6 +3,8 @@ title: Benchmarks
 description: zenpix vs Sharp — real-world measurements on VPS and Mac, with guidance on reading the results.
 ---
 
+import AvifDemo from '../../components/AvifDemo.astro';
+
 ---
 
 ## Reading the Results
@@ -92,6 +94,14 @@ Same conditions, same fixtures, with `threads=14` (`os.cpus().length`) passed to
 
 ---
 
+## Try It: Convert in Your Browser
+
+Upload your own image to see the results. Conversion runs entirely **in your browser (zenpix-wasm)** — nothing is sent to a server.
+
+<AvifDemo lang="en" />
+
+---
+
 ## Summary
 
 | Use case | Recommendation |
@@ -100,18 +110,6 @@ Same conditions, same fixtures, with `threads=14` (`os.cpus().length`) passed to
 | VPS / low-core concurrent workloads | **zenpix** (CPU user ~40% of Sharp) |
 | Per-call CPU budget control | **zenpix** (`threads` option) |
 | Illustration / character AVIF on VPS | **zenpix** (ratio 1.2–1.5) |
-
----
-
-## Visual Quality Comparison
-
-Speed is one dimension — visual quality is another. At the same `quality=60` setting, zenpix preserves more tonal nuance in illustration content. Sharp discards subtle gradients more aggressively to achieve a smaller file size.
-
-| Sharp (quality=60) | zenpix (quality=60) |
-|:---:|:---:|
-| ![Sharp output](/sample_sharp.png) | ![zenpix output](/sample_zenpix.png) |
-
-*Pastel beach illustration. Sharp produces a smaller file by discarding subtle color transitions; zenpix retains them at a slightly larger size.*
 
 ---
 
