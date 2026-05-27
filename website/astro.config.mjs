@@ -39,6 +39,7 @@ export default defineConfig({
         { slug: 'benchmarks', label: 'Benchmarks', translations: { ja: 'ベンチマーク' } },
         { slug: 'environments', label: 'Environments & Troubleshooting', translations: { ja: '動作環境・トラブルシューティング' } },
       ],
+      favicon: '/favicon.png',
       head: [
         {
           tag: 'link',
