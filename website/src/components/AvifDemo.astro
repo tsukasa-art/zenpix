@@ -364,6 +364,9 @@ const t = lang === 'en' ? {
   /* Starlight の margin-top リセット */
   .comparison > * { margin-top: 0; }
 
+  /* hidden 属性の確実な適用（display 指定があると上書きされるため） */
+  .download-link[hidden] { display: none; }
+
   /* デスクトップ: 明示的な列・行配置 */
   .cmp-z-header  { grid-column: 1; grid-row: 1; }
   .cmp-z-stats   { grid-column: 1; grid-row: 2; }
