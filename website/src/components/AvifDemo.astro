@@ -1,44 +1,56 @@
 ---
-// AvifDemo.astro — ブラウザ内 AVIF 変換デモ（zenpix-wasm）
+// AvifDemo.astro — ブラウザ内 AVIF 変換デモ（zenpix-wasm vs Canvas API）
 interface Props { lang?: 'ja' | 'en' }
 const { lang = 'ja' } = Astro.props;
 
 const t = lang === 'en' ? {
-  ariaLabel:    'Select image',
-  uploadText:   'Drop image or click to select',
-  uploadHint:   'JPEG / PNG / WebP · up to 2MP (e.g. 1920×1080)',
-  speedStd:     'Standard (speed=6)',
-  speedFast:    'Fast (speed=10)',
-  convertBtn:   'Convert',
-  converting:   'Converting…',
-  download:     'Download (.avif)',
-  previewAlt:   'AVIF conversion result',
-  wasmNote:     'Conversion runs entirely in your browser (zenpix-wasm). No image is sent to a server.',
-  clickChange:  'Click to change',
-  encodeFail:   'Encode failed',
-  errorPrefix:  'Error: ',
-  statsBefore:  'Before',
-  statsAfter:   'After',
-  statsRatio:   'Reduced',
-  statsTime:    'Time',
+  ariaLabel:       'Select image',
+  uploadText:      'Drop image or click to select',
+  uploadHint:      'JPEG / PNG / WebP · up to 2MP (e.g. 1920×1080)',
+  speedStd:        'Standard (speed=6)',
+  speedFast:       'Fast (speed=10)',
+  convertBtn:      'Convert',
+  converting:      'Converting…',
+  download:        'Download (.avif)',
+  previewAlt:      'AVIF result',
+  wasmNote:        'Conversion runs entirely in your browser. No image is sent to a server.',
+  clickChange:     'Click to change',
+  encodeFail:      'Encode failed',
+  errorPrefix:     'Error: ',
+  statsBefore:     'Before',
+  statsAfter:      'After',
+  statsRatio:      'Reduced',
+  statsTime:       'Time',
+  labelZenpix:     'zenpix-wasm',
+  labelCanvas:     'Browser Canvas API',
+  chromaZenpix:    'YUV 4:4:4 — full color',
+  chromaCanvas:    'YUV 4:2:0 — color subsampled',
+  notSupported:    'AVIF not supported in this browser',
+  chromaNote:      'YUV 4:4:4 retains all color information. Canvas API uses YUV 4:2:0 (same as Sharp default), discarding 75% of chroma — noticeable on illustrations and vivid gradients.',
 } : {
-  ariaLabel:    '画像を選択',
-  uploadText:   '画像をドロップ、またはクリックして選択',
-  uploadHint:   'JPEG / PNG / WebP · 2MP まで（例: 1920×1080）',
-  speedStd:     '標準 (speed=6)',
-  speedFast:    '高速 (speed=10)',
-  convertBtn:   '変換',
-  converting:   '変換中…',
-  download:     'ダウンロード (.avif)',
-  previewAlt:   'AVIF変換結果プレビュー',
-  wasmNote:     '変換はブラウザ内（zenpix-wasm）で実行されます。画像はサーバーに送信されません。',
-  clickChange:  'クリックで変更',
-  encodeFail:   'エンコード失敗',
-  errorPrefix:  'エラー: ',
-  statsBefore:  '変換前',
-  statsAfter:   '変換後',
-  statsRatio:   '圧縮率',
-  statsTime:    '処理時間',
+  ariaLabel:       '画像を選択',
+  uploadText:      '画像をドロップ、またはクリックして選択',
+  uploadHint:      'JPEG / PNG / WebP · 2MP まで（例: 1920×1080）',
+  speedStd:        '標準 (speed=6)',
+  speedFast:       '高速 (speed=10)',
+  convertBtn:      '変換',
+  converting:      '変換中…',
+  download:        'ダウンロード (.avif)',
+  previewAlt:      'AVIF変換結果',
+  wasmNote:        '変換はすべてブラウザ内で実行されます。画像はサーバーに送信されません。',
+  clickChange:     'クリックで変更',
+  encodeFail:      'エンコード失敗',
+  errorPrefix:     'エラー: ',
+  statsBefore:     '変換前',
+  statsAfter:      '変換後',
+  statsRatio:      '圧縮率',
+  statsTime:       '処理時間',
+  labelZenpix:     'zenpix-wasm',
+  labelCanvas:     'ブラウザ Canvas API',
+  chromaZenpix:    'YUV 4:4:4 — 色情報を完全保持',
+  chromaCanvas:    'YUV 4:2:0 — 色差サブサンプリング',
+  notSupported:    'このブラウザは Canvas AVIF に非対応',
+  chromaNote:      'YUV 4:4:4 は色情報をすべて保持します。Canvas API は YUV 4:2:0（Sharp のデフォルトと同じ）を使用し、色差成分を 75% 間引くため、イラストや彩度の高いグラデーションで差が出やすいです。',
 };
 ---
 
@@ -52,6 +64,8 @@ const t = lang === 'en' ? {
   data-stats-after={t.statsAfter}
   data-stats-ratio={t.statsRatio}
   data-stats-time={t.statsTime}
+  data-not-supported={t.notSupported}
+  data-chroma-note={t.chromaNote}
 >
   <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label={t.ariaLabel}>
     <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,image/avif,image/gif" />
@@ -64,7 +78,7 @@ const t = lang === 'en' ? {
     <p class="upload-hint">{t.uploadHint}</p>
   </div>
 
-  <div class="controls" id="controls">
+  <div class="controls">
     <label class="control-row">
       <span class="control-label">Quality</span>
       <input type="range" id="quality-slider" min="20" max="90" value="60" step="5" />
@@ -87,14 +101,26 @@ const t = lang === 'en' ? {
 
   <button class="convert-btn" id="convert-btn" disabled>{t.convertBtn}</button>
 
-  <div class="result" id="result" hidden>
-    <div class="stats" id="stats"></div>
-    <div class="preview-area">
-      <img id="preview" alt={t.previewAlt} />
+  <div class="comparison" id="comparison" hidden>
+    <!-- zenpix 列（HTML順でモバイルは先に表示） -->
+    <div class="col-header cmp-z-header">
+      <span class="col-title">{t.labelZenpix}</span>
+      <span class="col-chroma chroma-444">{t.chromaZenpix}</span>
     </div>
-    <a class="download-link" id="download-link" download="output.avif">{t.download}</a>
+    <div class="stats cmp-z-stats" id="stats-zenpix"></div>
+    <div class="preview-area cmp-z-preview"><img id="preview-zenpix" alt={t.previewAlt} hidden /></div>
+    <a class="download-link cmp-z-dl" id="dl-zenpix" download="zenpix.avif" hidden>{t.download}</a>
+    <!-- canvas 列 -->
+    <div class="col-header cmp-c-header">
+      <span class="col-title">{t.labelCanvas}</span>
+      <span class="col-chroma chroma-420">{t.chromaCanvas}</span>
+    </div>
+    <div class="stats cmp-c-stats" id="stats-canvas"></div>
+    <div class="preview-area cmp-c-preview"><img id="preview-canvas" alt={t.previewAlt} hidden /></div>
+    <a class="download-link cmp-c-dl" id="dl-canvas" download="canvas.avif" hidden>{t.download}</a>
   </div>
 
+  <p class="chroma-note" id="chroma-note" hidden></p>
   <p class="wasm-note">{t.wasmNote}</p>
 </div>
 
@@ -109,13 +135,10 @@ const t = lang === 'en' ? {
   const qualSlider = document.getElementById('quality-slider');
   const qualValue  = document.getElementById('quality-value');
   const convertBtn = document.getElementById('convert-btn');
-  const resultEl   = document.getElementById('result');
-  const statsEl    = document.getElementById('stats');
-  const previewEl  = document.getElementById('preview');
-  const downloadEl = document.getElementById('download-link');
+  const comparison = document.getElementById('comparison');
+  const chromaNote = document.getElementById('chroma-note');
 
-  const s = demo.dataset; // i18n strings from data-* attributes
-
+  const s = demo.dataset;
   let encoderReady = null;
   let selectedFile = null;
 
@@ -129,10 +152,9 @@ const t = lang === 'en' ? {
     }
     return encoderReady;
   }
-
   getEncoder().catch(() => {});
 
-  async function imageFileToRgba(file) {
+  async function decodeImage(file) {
     const bitmap = await createImageBitmap(file);
     let { width, height } = bitmap;
     const pixels = width * height;
@@ -145,7 +167,17 @@ const t = lang === 'en' ? {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(bitmap, 0, 0, width, height);
     const { data } = ctx.getImageData(0, 0, width, height);
-    return { rgba: new Uint8Array(data.buffer), width, height };
+    return { rgba: new Uint8Array(data.buffer), width, height, canvas };
+  }
+
+  async function encodeCanvas(canvas, quality) {
+    try {
+      const blob = await canvas.convertToBlob({ type: 'image/avif', quality: quality / 100 });
+      if (!blob || blob.size < 10) return null;
+      return blob;
+    } catch {
+      return null;
+    }
   }
 
   function fmtSize(bytes) {
@@ -154,21 +186,35 @@ const t = lang === 'en' ? {
       : (bytes / 1_000).toFixed(1) + ' KB';
   }
 
-  function setDropState(active) {
-    dropArea.classList.toggle('drag-over', active);
+  function fillResult(statsId, previewId, dlId, origSize, outSize, elapsed, url, filename) {
+    const ratio = ((1 - outSize / origSize) * 100).toFixed(0);
+    document.getElementById(statsId).innerHTML =
+      `${s.statsAfter}: <strong>${fmtSize(outSize)}</strong>　` +
+      `${s.statsRatio}: <strong>${ratio}%</strong>　` +
+      `${s.statsTime}: <strong>${elapsed}ms</strong>`;
+    const img = document.getElementById(previewId);
+    img.src = url;
+    img.removeAttribute('hidden');
+    const dl = document.getElementById(dlId);
+    dl.href = url;
+    dl.download = filename;
+    dl.removeAttribute('hidden');
   }
+
+  function setDropState(active) { dropArea.classList.toggle('drag-over', active); }
 
   function onFileSelected(file) {
     if (!file || !file.type.startsWith('image/')) return;
     selectedFile = file;
     dropArea.querySelector('.upload-text').textContent = file.name;
-    dropArea.querySelector('.upload-hint').textContent = fmtSize(file.size) + '  ·  ' + s.clickChange;
+    dropArea.querySelector('.upload-hint').textContent =
+      fmtSize(file.size) + '  ·  ' + s.clickChange;
     convertBtn.disabled = false;
-    resultEl.hidden = true;
+    comparison.hidden = true;
+    chromaNote.hidden = true;
   }
 
   qualSlider.addEventListener('input', () => { qualValue.textContent = qualSlider.value; });
-
   dropArea.addEventListener('click',   (e) => { if (e.target !== fileInput) fileInput.click(); });
   dropArea.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
   fileInput.addEventListener('change', () => onFileSelected(fileInput.files[0]));
@@ -180,49 +226,56 @@ const t = lang === 'en' ? {
     if (!selectedFile) return;
     convertBtn.disabled = true;
     convertBtn.textContent = s.converting;
-    statsEl.textContent = '';
-    resultEl.hidden = true;
+    comparison.hidden = true;
+    chromaNote.hidden = true;
 
     try {
       const quality = Number(qualSlider.value);
       const speed   = Number(document.querySelector('input[name="speed"]:checked').value);
+      const baseName = selectedFile.name.replace(/\.[^.]+$/, '');
 
-      const [Module, { rgba, width, height }] = await Promise.all([
+      const [Module, { rgba, width, height, canvas }] = await Promise.all([
         getEncoder(),
-        imageFileToRgba(selectedFile),
+        decodeImage(selectedFile),
       ]);
 
-      const t0 = performance.now();
+      // zenpix-wasm encode
+      const t0z = performance.now();
       const inputPtr = Module._malloc(rgba.length);
       Module.HEAPU8.set(rgba, inputPtr);
       const outPtr = Module._avif_encode(inputPtr, width, height, 4, quality, speed);
       Module._free(inputPtr);
-      const elapsed = Math.round(performance.now() - t0);
-
+      const elapsedZ = Math.round(performance.now() - t0z);
       if (!outPtr) throw new Error(s.encodeFail);
-
       const outSize = Module._avif_get_out_size();
       const avifBytes = Module.HEAPU8.slice(outPtr, outPtr + outSize);
       Module._avif_free_output(outPtr);
+      const urlZ = URL.createObjectURL(new Blob([avifBytes], { type: 'image/avif' }));
+      fillResult('stats-zenpix', 'preview-zenpix', 'dl-zenpix',
+        selectedFile.size, outSize, elapsedZ, urlZ, `${baseName}-zenpix.avif`);
 
-      const blob = new Blob([avifBytes], { type: 'image/avif' });
-      const url  = URL.createObjectURL(blob);
-      const ratio = ((1 - outSize / selectedFile.size) * 100).toFixed(0);
-      const dims  = ` (${width}×${height})`;
+      // Canvas API encode
+      const t0c = performance.now();
+      const canvasBlob = await encodeCanvas(canvas, quality);
+      const elapsedC = Math.round(performance.now() - t0c);
+      const canvasStats = document.getElementById('stats-canvas');
+      const canvasPreview = document.getElementById('preview-canvas');
+      const canvasDl = document.getElementById('dl-canvas');
+      if (canvasBlob) {
+        const urlC = URL.createObjectURL(canvasBlob);
+        fillResult('stats-canvas', 'preview-canvas', 'dl-canvas',
+          selectedFile.size, canvasBlob.size, elapsedC, urlC, `${baseName}-canvas.avif`);
+      } else {
+        canvasStats.textContent = s.notSupported;
+      }
 
-      statsEl.innerHTML =
-        `${s.statsBefore}: <strong>${fmtSize(selectedFile.size)}</strong>${dims}　` +
-        `→　${s.statsAfter}: <strong>${fmtSize(outSize)}</strong>　` +
-        `${s.statsRatio}: <strong>${ratio}%</strong>　` +
-        `${s.statsTime}: <strong>${elapsed}ms</strong>`;
+      comparison.hidden = false;
+      chromaNote.textContent = s.chromaNote;
+      chromaNote.hidden = false;
 
-      previewEl.src = url;
-      downloadEl.href = url;
-      downloadEl.download = selectedFile.name.replace(/\.[^.]+$/, '.avif');
-      resultEl.hidden = false;
     } catch (e) {
-      statsEl.textContent = s.errorPrefix + e.message;
-      resultEl.hidden = false;
+      document.getElementById('stats-zenpix').textContent = s.errorPrefix + e.message;
+      comparison.hidden = false;
     } finally {
       convertBtn.disabled = false;
       convertBtn.textContent = s.convertBtn;
@@ -257,16 +310,9 @@ const t = lang === 'en' ? {
     border-color: var(--sl-color-accent, #6b8cff);
     background: var(--sl-color-accent-low, rgba(107,140,255,0.08));
   }
-
   #file-input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
   }
-
   .upload-icon { width: 2rem; height: 2rem; margin-bottom: 0.75rem; color: var(--sl-color-gray-3, #888); }
   .upload-text { margin: 0; font-weight: 600; }
   .upload-hint { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--sl-color-gray-3, #888); }
@@ -277,23 +323,15 @@ const t = lang === 'en' ? {
     flex-direction: column;
     gap: 0.75rem;
   }
-
   .control-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     flex-wrap: wrap;
   }
-
-  .control-label {
-    min-width: 5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-  }
-
+  .control-label { min-width: 5rem; font-weight: 600; font-size: 0.9rem; }
   #quality-slider { flex: 1; min-width: 120px; max-width: 220px; }
-  .control-value  { min-width: 2rem; font-variant-numeric: tabular-nums; }
-
+  .control-value { min-width: 2rem; font-variant-numeric: tabular-nums; }
   .radio-group { display: flex; gap: 1.25rem; align-items: center; }
   .radio-label { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; cursor: pointer; line-height: 1; margin: 0; }
   .radio-label input[type="radio"] { margin: 0; flex-shrink: 0; }
@@ -313,38 +351,83 @@ const t = lang === 'en' ? {
   .convert-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .convert-btn:not(:disabled):hover { opacity: 0.85; }
 
-  .result { margin-top: 1.25rem; }
+  /* Comparison grid */
+  .comparison {
+    margin-top: 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto 220px auto;
+    gap: 0.6rem 1.25rem;
+  }
+  .comparison[hidden], .chroma-note[hidden] { display: none; }
 
-  .stats {
-    padding: 0.75rem;
-    background: var(--sl-color-bg, #13131a);
-    border-radius: 5px;
-    font-size: 0.9rem;
-    line-height: 1.7;
+  /* Starlight の margin-top リセット */
+  .comparison > * { margin-top: 0; }
+
+  /* デスクトップ: 明示的な列・行配置 */
+  .cmp-z-header  { grid-column: 1; grid-row: 1; }
+  .cmp-z-stats   { grid-column: 1; grid-row: 2; }
+  .cmp-z-preview { grid-column: 1; grid-row: 3; }
+  .cmp-z-dl      { grid-column: 1; grid-row: 4; }
+  .cmp-c-header  { grid-column: 2; grid-row: 1; }
+  .cmp-c-stats   { grid-column: 2; grid-row: 2; }
+  .cmp-c-preview { grid-column: 2; grid-row: 3; }
+  .cmp-c-dl      { grid-column: 2; grid-row: 4; }
+
+  /* モバイル: 1列 auto 配置（HTML順 = zenpix → canvas） */
+  @media (max-width: 600px) {
+    .comparison {
+      grid-template-columns: 1fr;
+      grid-template-rows: none;
+    }
+    .comparison > * { grid-column: 1; grid-row: auto; }
+    /* canvas グループの先頭に余白 */
+    .cmp-c-header { margin-top: 1.25rem; }
   }
 
-  .preview-area { margin-top: 1rem; text-align: center; }
-  #preview {
+  .col-header { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.1rem 0; }
+  .col-title { font-weight: 700; font-size: 0.9rem; }
+  .col-chroma { font-size: 0.75rem; }
+  .chroma-444 { color: var(--sl-color-accent, #6b8cff); }
+  .chroma-420 { color: var(--sl-color-gray-3, #888); }
+
+  .stats { font-size: 0.85rem; line-height: 1.6; align-self: start; }
+
+  .preview-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .preview-area img {
     max-width: 100%;
-    max-height: 320px;
+    max-height: 100%;
     border-radius: 4px;
     object-fit: contain;
   }
 
   .download-link {
     display: inline-block;
-    margin-top: 0.75rem;
-    padding: 0.45rem 1.1rem;
+    padding: 0.35rem 0.9rem;
     border: 1px solid var(--sl-color-accent, #6b8cff);
     border-radius: 5px;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--sl-color-accent, #6b8cff);
     text-decoration: none;
+    align-self: start;
+    justify-self: center;
   }
   .download-link:hover { background: var(--sl-color-accent-low, rgba(107,140,255,0.1)); }
 
+  .chroma-note {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3, #888);
+    line-height: 1.5;
+  }
+
   .wasm-note {
-    margin-top: 1rem;
+    margin-top: 0.75rem;
     font-size: 0.8rem;
     color: var(--sl-color-gray-3, #888);
   }
