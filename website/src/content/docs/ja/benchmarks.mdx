@@ -3,6 +3,8 @@ title: ベンチマーク
 description: zenpix vs Sharp の VPS・Mac 実測データと比較の読み方。
 ---
 
+import AvifDemo from '../../../components/AvifDemo.astro';
+
 ---
 
 ## 比較の読み方
@@ -75,6 +77,14 @@ zenpix と Sharp を比較するとき、**wall-clock** と **CPU user** の2軸
 
 ---
 
+## お試し：ブラウザで AVIF 変換
+
+自分の画像で試してみてください。変換は **ブラウザ内（zenpix-wasm）** で完結し、サーバーには送信されません。
+
+<AvifDemo />
+
+---
+
 ## まとめ
 
 | ユースケース | 推奨 |
@@ -83,18 +93,6 @@ zenpix と Sharp を比較するとき、**wall-clock** と **CPU user** の2軸
 | VPS・少コア環境での同時処理 | **zenpix**（CPU user が約 40%） |
 | CPU budget を per-call でコントロールしたい | **zenpix**（`threads` オプション） |
 | イラスト・キャラ系の AVIF 変換（VPS） | **zenpix**（ratio 1.2〜1.5） |
-
----
-
-## 画質比較
-
-速度だけでなく、同じ `quality=60` でも zenpix はイラスト素材の微細なトーンを保持します。Sharp はファイルサイズを小さくするために繊細なグラデーションをより積極的に間引きます。
-
-| Sharp (quality=60) | zenpix (quality=60) |
-|:---:|:---:|
-| ![Sharp 出力](/sample_sharp.png) | ![zenpix 出力](/sample_zenpix.png) |
-
-*パステル調ビーチイラスト。Sharp はニュアンス部分を間引いてファイルを小さくし、zenpix はやや大きくなる代わりに微妙なトーンを保持します。*
 
 ---
 
