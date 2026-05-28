@@ -3,16 +3,17 @@ title: はじめに
 description: zenpix — C 製の高速画像処理ライブラリ。npm install だけで Node.js / Bun / Deno で動く。
 ---
 
-C 製の高速画像処理ライブラリ。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応。
+C 製の高速画像処理ライブラリ。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応。ブラウザ上では [zenpix-wasm](/ja/wasm) が使えます。
 
-- **npm**: https://www.npmjs.com/package/zenpix
+- **npm（サーバー）**: https://www.npmjs.com/package/zenpix
+- **npm（ブラウザ / WASM）**: https://www.npmjs.com/package/zenpix-wasm
 - **GitHub**: https://github.com/tsukasa-art/zenpix
 
 ---
 
 ## インストール
 
-**Node.js / Bun**
+**Node.js / Bun（サーバーサイド）**
 
 ```bash
 npm install zenpix
@@ -33,6 +34,27 @@ import { decode, encodeAvif } from "npm:zenpix/deno";
 ```
 
 > Deno での実行時は `--allow-ffi` フラグが必要です。
+
+**ブラウザ / Cloudflare Pages（WASM）**
+
+```bash
+npm install zenpix-wasm
+```
+
+詳細は[ブラウザ（WASM）](/ja/wasm)を参照してください。
+
+---
+
+## インストール済みバージョンの確認
+
+```bash
+# ネイティブ
+npx zenpix --version
+npm list zenpix
+
+# WASM
+npm list zenpix-wasm
+```
 
 ---
 

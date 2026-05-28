@@ -10,6 +10,99 @@ libavif + libaom を Emscripten で WebAssembly にコンパイルしたブラ�
 | ブラウザ / Cloudflare Pages 静的 JS | **本モジュール（WASM）** |
 | Cloudflare Workers Free | ❌ CPU 10ms 制限で不可 |
 
+## インストール
+
+```bash
+npm install zenpix-wasm
+```
+
+バージョン確認：
+
+```bash
+npm list zenpix-wasm
+```
+
+## クイックスタート
+
+```typescript
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder();
+// pixels: RGBA 生ピクセル（width × height × 4 の Uint8Array）
+const avif = enc.encode(pixels, width, height, { quality: 60, speed: 10 });
+if (avif) {
+  const blob = new Blob([avif], { type: "image/avif" });
+  const url  = URL.createObjectURL(blob);
+}
+enc.dispose(); // WASM ヒープを解放（省略可、GC が回収する）
+```
+
+## SIMD 版 vs baseline 版
+
+| ファイル | 対応ブラウザ | 速度 |
+|---------|------------|------|
+| `zenpix-wasm` (baseline) | 全ブラウザ | 基準 |
+| `zenpix-wasm/simd` | Chrome 91+ / Firefox 89+ / Safari 16.4+ | ~15% 高速 |
+
+SIMD 対応の自動検出（推奨）：
+
+```typescript
+const simdSupported = WebAssembly.validate(new Uint8Array([
+  0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11
+]));
+const { createAvifEncoder } = simdSupported
+  ? await import("zenpix-wasm/simd")
+  : await import("zenpix-wasm");
+
+const enc = await createAvifEncoder();
+```
+
+## Vite / バンドラー
+
+Vite では `.wasm` ファイルを URL として渡す必要があります：
+
+```typescript
+import wasmUrl from "zenpix-wasm/dist/avif.wasm?url";
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder(wasmUrl);
+```
+
+SIMD 版を使う場合：
+
+```typescript
+import wasmUrl from "zenpix-wasm/dist/avif.simd.wasm?url";
+import { createAvifEncoder } from "zenpix-wasm/simd";
+
+const enc = await createAvifEncoder(wasmUrl);
+```
+
+## Worker での使用（大画像・低 speed 設定時）
+
+`speed=10` で 1024×1024 が約 60ms かかります。UI をブロックしないよう `Worker` 内での実行を推奨します：
+
+```js
+// avif-worker.js
+import { createAvifEncoder } from "zenpix-wasm";
+const enc = await createAvifEncoder();
+
+self.onmessage = ({ data: { pixels, width, height, quality, speed } }) => {
+  const avif = enc.encode(pixels, width, height, { quality, speed });
+  self.postMessage({ avif }, avif ? [avif.buffer] : []);
+};
+```
+
+```js
+// main.js
+const worker = new Worker("./avif-worker.js", { type: "module" });
+worker.postMessage({ pixels, width, height, quality: 60, speed: 6 });
+worker.onmessage = ({ data: { avif } }) => {
+  if (avif) {
+    const blob = new Blob([avif], { type: "image/avif" });
+  }
+};
+```
+
 ## リリース / CI
 
 - **差分の正本**: 利用者向けの変更は **`CHANGELOG.md`**（本ディレクトリ）を更新する。ルート `zenpix` のネイティブ変更はルート **`CHANGELOG.md`**。

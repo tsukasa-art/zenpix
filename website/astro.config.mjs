@@ -34,6 +34,7 @@ export default defineConfig({
       },
       sidebar: [
         { slug: 'index', label: 'Getting Started', translations: { ja: 'はじめに' } },
+        { slug: 'wasm', label: 'Browser (WASM)', translations: { ja: 'ブラウザ（WASM）' } },
         { slug: 'cli', label: 'CLI Guide', translations: { ja: 'CLI ガイド' } },
         { slug: 'api', label: 'API Reference', translations: { ja: 'API リファレンス' } },
         { slug: 'benchmarks', label: 'Benchmarks', translations: { ja: 'ベンチマーク' } },
