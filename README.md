@@ -4,11 +4,13 @@ High-quality, high-performance image processing library built in C. Decodes JPEG
 
 **[日本語ドキュメント](./README.ja.md)**
 
-**npm:** [zenpix](https://www.npmjs.com/package/zenpix) (Node / Bun / Deno, native)
+**npm:** [zenpix](https://www.npmjs.com/package/zenpix) (Node / Bun / Deno, native) · [zenpix-wasm](https://www.npmjs.com/package/zenpix-wasm) (browser / Cloudflare Pages)
 
 ---
 
 ## Install
+
+**Node.js / Bun (server-side)**
 
 ```bash
 npm install zenpix
@@ -21,6 +23,27 @@ npm install zenpix
 ```typescript
 import { decode, encodeAvif } from "npm:zenpix/deno";
 // requires --allow-ffi flag
+```
+
+**Browser / Cloudflare Pages (WASM)**
+
+```bash
+npm install zenpix-wasm
+```
+
+See [Browser (WASM)](#browser-wasm) below.
+
+---
+
+## Check installed version
+
+```bash
+# native
+npx zenpix --version
+npm list zenpix
+
+# wasm
+npm list zenpix-wasm
 ```
 
 ---
@@ -101,12 +124,63 @@ On low-core VPS environments (2–4 vCPUs), zenpix outperforms Sharp on complex 
 
 ---
 
+## Browser (WASM)
+
+`zenpix-wasm` encodes AVIF entirely in the browser — no server required. It uses the same libavif + libaom as the native build, compiled to WebAssembly via Emscripten.
+
+**When to use which package:**
+
+| Use case | Package |
+|---|---|
+| Node.js / Bun / Deno server | `zenpix` (native, fastest) |
+| Browser / Cloudflare Pages static JS | `zenpix-wasm` |
+| Cloudflare Workers Free | Not supported (10ms CPU limit) |
+
+**Quick example:**
+
+```typescript
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder();
+// pixels: Uint8Array of raw RGBA (width × height × 4)
+const avif = enc.encode(pixels, width, height, { quality: 60, speed: 10 });
+if (avif) {
+  const blob = new Blob([avif], { type: "image/avif" });
+}
+enc.dispose();
+```
+
+**SIMD detection (recommended):**
+
+```typescript
+const simdSupported = WebAssembly.validate(new Uint8Array([
+  0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11
+]));
+const { createAvifEncoder } = simdSupported
+  ? await import("zenpix-wasm/simd")   // Chrome 91+ / Firefox 89+ / Safari 16.4+
+  : await import("zenpix-wasm");
+```
+
+**Vite — serve the `.wasm` file via URL:**
+
+```typescript
+import wasmUrl from "zenpix-wasm/dist/avif.wasm?url";
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder(wasmUrl);
+```
+
+See [wasm/README.md](./wasm/README.md) for full documentation.
+
+---
+
 ## Documentation
 
 - [Getting Started / API Reference](./docs/reference/index.md)
 - [CLI Guide](./docs/reference/cli.md)
 - [Benchmarks](./docs/reference/benchmarks.md)
 - [Environments & Troubleshooting](./docs/reference/environments.md)
+- [Browser (WASM)](./wasm/README.md)
 
 ---
 

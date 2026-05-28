@@ -3,16 +3,17 @@ title: Getting Started
 description: zenpix — Fast native image processing for Node.js, Bun, and Deno.
 ---
 
-Fast image processing library written in C. Decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes to WebP / AVIF / PNG via Lanczos-3 resize. Works with Node.js, Bun, and Deno.
+Fast image processing library written in C. Decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes to WebP / AVIF / PNG via Lanczos-3 resize. Works with Node.js, Bun, and Deno — and in the browser via [zenpix-wasm](/wasm).
 
-- **npm**: https://www.npmjs.com/package/zenpix
+- **npm (server)**: https://www.npmjs.com/package/zenpix
+- **npm (browser/WASM)**: https://www.npmjs.com/package/zenpix-wasm
 - **GitHub**: https://github.com/tsukasa-art/zenpix
 
 ---
 
 ## Install
 
-**Node.js / Bun**
+**Node.js / Bun (server-side)**
 
 ```bash
 npm install zenpix
@@ -33,6 +34,27 @@ import { decode, encodeAvif } from "npm:zenpix/deno";
 ```
 
 > Requires the `--allow-ffi` flag at runtime.
+
+**Browser / Cloudflare Pages (WASM)**
+
+```bash
+npm install zenpix-wasm
+```
+
+See [Browser (WASM)](/wasm) for the full guide.
+
+---
+
+## Check installed version
+
+```bash
+# native
+npx zenpix --version
+npm list zenpix
+
+# wasm
+npm list zenpix-wasm
+```
 
 ---
 

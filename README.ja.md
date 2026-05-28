@@ -2,11 +2,13 @@
 
 C 製の高品質・高速画像処理ライブラリです。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応（FFI 経由）。ビルド環境は不要です。
 
-**npm:** [zenpix](https://www.npmjs.com/package/zenpix)（Node / Bun / Deno・ネイティブ）
+**npm:** [zenpix](https://www.npmjs.com/package/zenpix)（Node / Bun / Deno・ネイティブ）・[zenpix-wasm](https://www.npmjs.com/package/zenpix-wasm)（ブラウザ / Cloudflare Pages）
 
 ---
 
 ## インストール
+
+**Node.js / Bun（サーバーサイド）**
 
 ```bash
 npm install zenpix
@@ -19,6 +21,27 @@ npm install zenpix
 ```typescript
 import { decode, encodeAvif } from "npm:zenpix/deno";
 // 実行時に --allow-ffi フラグが必要
+```
+
+**ブラウザ / Cloudflare Pages（WASM）**
+
+```bash
+npm install zenpix-wasm
+```
+
+詳細は[ブラウザ（WASM）](#ブラウザwasm)セクションを参照してください。
+
+---
+
+## インストール済みバージョンの確認
+
+```bash
+# ネイティブ
+npx zenpix --version
+npm list zenpix
+
+# WASM
+npm list zenpix-wasm
 ```
 
 ---
@@ -99,12 +122,63 @@ zenpix の AVIF エンコードは **YUV 4:4:4**（クロマサブサンプリ�
 
 ---
 
+## ブラウザ（WASM）
+
+`zenpix-wasm` はブラウザ上で完全に AVIF エンコードを行います。サーバーへの送信は不要です。ネイティブ版と同じ libavif + libaom を Emscripten で WebAssembly にコンパイルしています。
+
+**用途別パッケージの選択：**
+
+| 用途 | パッケージ |
+|---|---|
+| Node.js / Bun / Deno サーバー | `zenpix`（ネイティブ・最速） |
+| ブラウザ / Cloudflare Pages 静的 JS | `zenpix-wasm` |
+| Cloudflare Workers Free | 非対応（CPU 10ms 制限） |
+
+**クイック例：**
+
+```typescript
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder();
+// pixels: RGBA 生ピクセル（width × height × 4 の Uint8Array）
+const avif = enc.encode(pixels, width, height, { quality: 60, speed: 10 });
+if (avif) {
+  const blob = new Blob([avif], { type: "image/avif" });
+}
+enc.dispose();
+```
+
+**SIMD 検出（推奨）：**
+
+```typescript
+const simdSupported = WebAssembly.validate(new Uint8Array([
+  0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11
+]));
+const { createAvifEncoder } = simdSupported
+  ? await import("zenpix-wasm/simd")   // Chrome 91+ / Firefox 89+ / Safari 16.4+
+  : await import("zenpix-wasm");
+```
+
+**Vite — `.wasm` ファイルを URL で渡す：**
+
+```typescript
+import wasmUrl from "zenpix-wasm/dist/avif.wasm?url";
+import { createAvifEncoder } from "zenpix-wasm";
+
+const enc = await createAvifEncoder(wasmUrl);
+```
+
+詳細は [wasm/README.md](./wasm/README.md) を参照してください。
+
+---
+
 ## ドキュメント
 
 - [はじめに / API リファレンス](./docs/reference/index.md)
 - [CLI ガイド](./docs/reference/cli.md)
 - [ベンチマーク詳細](./docs/reference/benchmarks.md)
 - [動作環境・トラブルシューティング](./docs/reference/environments.md)
+- [ブラウザ（WASM）](./wasm/README.md)
 
 ---
 
