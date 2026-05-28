@@ -23,6 +23,9 @@
   "scripts": {
     "build": "tsc && esbuild js/src/index.deno.ts --bundle=false --platform=neutral --format=esm --outfile=js/dist/index.deno.js && bun scripts/add-shebang.mjs",
     "prepublishOnly": "npm run build",
+    "wasm": "bash scripts/build-wasm.sh",
+    "wasm:simd": "bash scripts/build-wasm.sh --simd",
+    "wasm:all": "bash scripts/build-wasm.sh && bash scripts/build-wasm.sh --simd",
     "bench": "bun bench/bench.ts",
     "bench:threads": "bun bench/bench-threads.ts"
   },
