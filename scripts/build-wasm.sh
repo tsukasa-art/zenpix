@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+# scripts/build-wasm.sh
+#
+# Build the zenpix WASM module for browser-side AVIF encoding.
+#
+# Pipeline:
+#   1. Build libaom as a WASM static library via emcmake
+#   2. Build libavif as a WASM static library (linking libaom)
+#   3. Compile wasm/src/avif_wasm.c with emcc and produce:
+#        wasm/dist/avif.wasm
+#        wasm/dist/avif.js   (Emscripten ES module glue)
+#
+# Prerequisites:
+#   - emsdk activated (emcc in PATH), or EMSDK env var set to ~/emsdk
+#   - cmake >= 3.20, ninja
+#
+# Usage:
+#   bash scripts/build-wasm.sh            # release (default)
+#   bash scripts/build-wasm.sh --debug    # debug build
+#   bash scripts/build-wasm.sh --simd     # enable WASM SIMD (requires modern browser)
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+RED='\033[0;31m'; GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
+info()  { echo -e "${CYAN}[build-wasm]${RESET} $*"; }
+ok()    { echo -e "${GREEN}[build-wasm]${RESET} $*"; }
+error() { echo -e "${RED}[build-wasm] ERROR:${RESET} $*" >&2; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Parse flags
+# ---------------------------------------------------------------------------
+DEBUG=0
+SIMD=0
+for arg in "$@"; do
+    case "$arg" in
+        --debug) DEBUG=1 ;;
+        --simd)  SIMD=1  ;;
+        *) error "Unknown flag: $arg" ;;
+    esac
+done
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENDOR="$REPO/vendor"
+BUILD_DIR="$REPO/build/wasm"
+OUT_DIR="$REPO/wasm/dist"
+
+LIBAOM_SRC="$VENDOR/libaom"
+LIBAVIF_SRC="$VENDOR/libavif"
+WASM_SRC="$REPO/wasm/src"
+
+LIBAOM_BUILD="$BUILD_DIR/libaom"
+LIBAVIF_BUILD="$BUILD_DIR/libavif"
+
+# ---------------------------------------------------------------------------
+# Activate Emscripten if not already in PATH
+# ---------------------------------------------------------------------------
+if ! command -v emcc &>/dev/null; then
+    if [[ -n "${EMSDK:-}" && -f "$EMSDK/emsdk_env.sh" ]]; then
+        info "Sourcing emsdk from EMSDK=$EMSDK"
+        # shellcheck disable=SC1091
+        source "$EMSDK/emsdk_env.sh"
+    elif [[ -f "$HOME/emsdk/emsdk_env.sh" ]]; then
+        info "Sourcing emsdk from ~/emsdk"
+        # shellcheck disable=SC1091
+        source "$HOME/emsdk/emsdk_env.sh"
+    else
+        error "emcc not found. Run: source ~/emsdk/emsdk_env.sh"
+    fi
+fi
+
+# Avoid `emcc --version | head` under pipefail: closing the pipe can SIGPIPE the
+# Python emcc process and fail the whole script before any log line (CI symptom).
+if ! _emcc_ver_out=$(emcc --version 2>&1); then
+    error "emcc --version failed (exit $?): $_emcc_ver_out"
+fi
+EMCC_VERSION="${_emcc_ver_out%%$'\n'*}"
+info "Using: $EMCC_VERSION"
+
+# ---------------------------------------------------------------------------
+# Build flags
+# ---------------------------------------------------------------------------
+if [[ $DEBUG -eq 1 ]]; then
+    OPT_FLAGS="-O0 -g"
+    BUILD_TYPE="Debug"
+else
+    OPT_FLAGS="-O3"
+    BUILD_TYPE="Release"
+fi
+
+SIMD_FLAGS=""
+if [[ $SIMD -eq 1 ]]; then
+    SIMD_FLAGS="-msimd128"
+    info "WASM SIMD enabled"
+fi
+
+EMCC_CFLAGS="$OPT_FLAGS $SIMD_FLAGS"
+
+mkdir -p "$LIBAOM_BUILD" "$LIBAVIF_BUILD" "$OUT_DIR"
+
+# ---------------------------------------------------------------------------
+# Step 1: Build libaom → libaom.a (WASM)
+# ---------------------------------------------------------------------------
+info "Step 1: configuring libaom for WASM..."
+# Log to file so we can check emcmake's exit code (pipes + grep break pipefail).
+emcmake cmake "$LIBAOM_SRC" \
+    -B "$LIBAOM_BUILD" \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DCMAKE_C_FLAGS="$EMCC_CFLAGS" \
+    -DCMAKE_CXX_FLAGS="$EMCC_CFLAGS" \
+    -DAOM_TARGET_CPU=generic \
+    -DCONFIG_RUNTIME_CPU_DETECT=0 \
+    -DCONFIG_MULTITHREAD=0 \
+    -DCONFIG_UNIT_TESTS=0 \
+    -DCONFIG_WEBM_IO=0 \
+    -DCONFIG_LIBYUV=0 \
+    -DENABLE_TESTS=0 \
+    -DENABLE_EXAMPLES=0 \
+    -DENABLE_DOCS=0 \
+    -DENABLE_TOOLS=0 \
+    -DENABLE_CCACHE=0 \
+    &> "$LIBAOM_BUILD/configure.log" || {
+    _libaom_cfg=$?
+    tail -50 "$LIBAOM_BUILD/configure.log" >&2 || true
+    error "libaom cmake configure failed (exit $_libaom_cfg)"
+}
+grep -v "^--" "$LIBAOM_BUILD/configure.log" | tail -20 || true
+
+info "Step 1: building libaom..."
+cmake --build "$LIBAOM_BUILD" -- -j"$(sysctl -n hw.logicalcpu 2>/dev/null || nproc)"
+
+LIBAOM_A=$(find "$LIBAOM_BUILD" -name "libaom.a" | head -1)
+[[ -f "$LIBAOM_A" ]] || error "libaom.a not found after build"
+ok "libaom.a built: $LIBAOM_A"
+
+# ---------------------------------------------------------------------------
+# Step 2: Build libavif → libavif.a (WASM), linking against our libaom.a
+# ---------------------------------------------------------------------------
+info "Step 2: configuring libavif for WASM..."
+
+# Generate a minimal cmake package config so libavif's find_package(aom) succeeds.
+cat > "$LIBAOM_BUILD/aom-config.cmake" << EOCMAKE
+# Auto-generated by build-wasm.sh
+set(aom_FOUND TRUE)
+set(aom_VERSION "3.12.1")
+if(NOT TARGET aom)
+    add_library(aom STATIC IMPORTED GLOBAL)
+    set_target_properties(aom PROPERTIES
+        IMPORTED_LOCATION "${LIBAOM_A}"
+    )
+    target_include_directories(aom INTERFACE
+        "${LIBAOM_SRC}"
+        "${LIBAOM_BUILD}"
+    )
+endif()
+EOCMAKE
+
+emcmake cmake "$LIBAVIF_SRC" \
+    -B "$LIBAVIF_BUILD" \
+    -G Ninja \
+    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+    -DCMAKE_C_FLAGS="$EMCC_CFLAGS" \
+    -DAVIF_CODEC_AOM=SYSTEM \
+    -DAOM_INCLUDE_DIR="$LIBAOM_SRC" \
+    -DAOM_LIBRARY="$LIBAOM_A" \
+    -DAOM_LIBRARIES="$LIBAOM_A" \
+    -Daom_FOUND=TRUE \
+    -DAVIF_LIBYUV=OFF \
+    -DAVIF_LIBSHARPYUV=OFF \
+    -DAVIF_BUILD_TESTS=OFF \
+    -DAVIF_BUILD_EXAMPLES=OFF \
+    -DAVIF_BUILD_APPS=OFF \
+    -DAVIF_ENABLE_WERROR=OFF \
+    -DCMAKE_SKIP_INSTALL_RULES=ON \
+    &> "$LIBAVIF_BUILD/configure.log" || {
+    _libavif_cfg=$?
+    tail -50 "$LIBAVIF_BUILD/configure.log" >&2 || true
+    error "libavif cmake configure failed (exit $_libavif_cfg)"
+}
+grep -v "^--" "$LIBAVIF_BUILD/configure.log" | tail -20 || true
+
+info "Step 2: building libavif..."
+cmake --build "$LIBAVIF_BUILD" -- -j"$(sysctl -n hw.logicalcpu 2>/dev/null || nproc)"
+
+LIBAVIF_A=$(find "$LIBAVIF_BUILD" -name "libavif.a" | head -1)
+[[ -f "$LIBAVIF_A" ]] || error "libavif.a not found after build"
+ok "libavif.a built: $LIBAVIF_A"
+
+# ---------------------------------------------------------------------------
+# Step 3: Compile avif_wasm.c and link everything
+# ---------------------------------------------------------------------------
+info "Step 3: compiling avif_wasm.c and linking..."
+
+AVIF_INCLUDE_DIR="$LIBAVIF_SRC/include"
+LIBAOM_BUILD_INCLUDE="$LIBAOM_BUILD"  # config/aom_config.h generated here
+
+EXPORTED_FUNCS='["_avif_encode","_avif_get_out_size","_avif_free_output","_avif_version","_malloc","_free"]'
+
+COMMON_FLAGS=(
+    $OPT_FLAGS $SIMD_FLAGS
+    -I "$AVIF_INCLUDE_DIR"
+    -I "$LIBAOM_SRC"
+    -I "$LIBAOM_BUILD_INCLUDE"
+    "$WASM_SRC/avif_wasm.c"
+    "$LIBAVIF_A"
+    "$LIBAOM_A"
+    -s WASM=1
+    -s EXPORTED_FUNCTIONS="$EXPORTED_FUNCS"
+    -s 'EXPORTED_RUNTIME_METHODS=["ccall","cwrap","HEAPU8"]'
+    -s MODULARIZE=1
+    -s EXPORT_ES6=1
+    -s ALLOW_MEMORY_GROWTH=1
+    -s INITIAL_MEMORY=33554432
+    -s STACK_SIZE=1048576
+    -s ASSERTIONS=0
+)
+
+# Output filenames: SIMD build uses avif.simd.{js,wasm} to coexist with baseline
+if [[ $SIMD -eq 1 ]]; then
+    BROWSER_OUT="$OUT_DIR/avif.simd.js"
+    NODE_OUT="$OUT_DIR/avif.simd.node.js"
+else
+    BROWSER_OUT="$OUT_DIR/avif.js"
+    NODE_OUT="$OUT_DIR/avif.node.js"
+fi
+
+# Browser / Cloudflare Pages build (web + worker)
+emcc "${COMMON_FLAGS[@]}" \
+    -s ENVIRONMENT='web,worker' \
+    -o "$BROWSER_OUT"
+
+# Node.js test build (node + web + worker)
+emcc "${COMMON_FLAGS[@]}" \
+    -s ENVIRONMENT='node,web,worker' \
+    -o "$NODE_OUT"
+
+ok "WASM build complete!"
+echo ""
+
+# ---------------------------------------------------------------------------
+# Copy to website/public/wasm/ for the demo site
+# ---------------------------------------------------------------------------
+WEBSITE_WASM_DIR="$REPO/website/public/wasm"
+if [[ -d "$WEBSITE_WASM_DIR" ]]; then
+    cp "$BROWSER_OUT" "$WEBSITE_WASM_DIR/"
+    cp "${BROWSER_OUT%.js}.wasm" "$WEBSITE_WASM_DIR/"
+    info "Copied to $WEBSITE_WASM_DIR"
+fi
+
+# ---------------------------------------------------------------------------
+# Stats
+# ---------------------------------------------------------------------------
+WASM_FILE="${BROWSER_OUT%.js}.wasm"
+JS_FILE="$BROWSER_OUT"
+
+if [[ -f "$WASM_FILE" ]]; then
+    WASM_SIZE=$(wc -c < "$WASM_FILE")
+    WASM_GZ=$(gzip -c "$WASM_FILE" | wc -c)
+    ok "$(basename "$WASM_FILE")  raw=$(( WASM_SIZE / 1024 ))KB  gzip=$(( WASM_GZ / 1024 ))KB"
+fi
+if [[ -f "$JS_FILE" ]]; then
+    JS_SIZE=$(wc -c < "$JS_FILE")
+    ok "$(basename "$JS_FILE")    raw=$(( JS_SIZE / 1024 ))KB"
+fi
+
+echo ""
+info "Output files in: $OUT_DIR"
+ls -lh "$OUT_DIR/"
