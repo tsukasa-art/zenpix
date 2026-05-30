@@ -1,6 +1,6 @@
 {
   "name": "zenpix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "High-performance image processing engine. Decode, resize, WebP/AVIF/PNG encode.",
   "type": "module",
   "main": "js/dist/index.js",
@@ -43,11 +43,11 @@
     "url": "https://github.com/tsukasa-art/zenpix.git"
   },
   "optionalDependencies": {
-    "zenpix-darwin-arm64": "1.0.0",
-    "zenpix-darwin-x64": "1.0.0",
-    "zenpix-linux-x64": "1.0.0",
-    "zenpix-linux-arm64": "1.0.0",
-    "zenpix-win32-x64": "1.0.0"
+    "zenpix-darwin-arm64": "1.0.1",
+    "zenpix-darwin-x64": "1.0.1",
+    "zenpix-linux-x64": "1.0.1",
+    "zenpix-linux-arm64": "1.0.1",
+    "zenpix-win32-x64": "1.0.1"
   },
   "dependencies": {
     "koffi": "^2.16.0"
