@@ -13,16 +13,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+      - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake pkg-config \
-            libavif-dev libwebp-dev libjpeg-dev libpng-dev
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_installed
+          key: vcpkg-x64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install --triplet x64-linux-static \
+            --overlay-triplets=cmake/triplets \
+            --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build --parallel
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
@@ -37,16 +53,32 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+      - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake pkg-config \
-            libavif-dev libwebp-dev libjpeg-dev libpng-dev
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_installed
+          key: vcpkg-arm64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
+      - name: Install vcpkg dependencies
+        run: |
+          vcpkg install --triplet arm64-linux-static \
+            --overlay-triplets=cmake/triplets \
+            --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build --parallel
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
