@@ -1,6 +1,6 @@
 {
   "name": "zenpix-linux-arm64",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "zenpix native binary for Linux arm64",
   "os": ["linux"],
   "cpu": ["arm64"],
