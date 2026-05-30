@@ -60,14 +60,16 @@ set_target_properties(pict PROPERTIES
 target_include_directories(pict PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # ── Platform-specific dependencies ────────────────────────────────────────
-if(WIN32)
-  # vcpkg provides these via CMAKE_TOOLCHAIN_FILE
+# vcpkg path: Windows always, Linux/macOS when VCPKG_TARGET_TRIPLET is set
+if(WIN32 OR DEFINED VCPKG_TARGET_TRIPLET)
   find_package(libavif CONFIG REQUIRED)
   find_package(WebP    CONFIG REQUIRED)
   find_package(JPEG           REQUIRED)
   find_package(PNG            REQUIRED)
 
-  target_compile_definitions(pict PRIVATE PICT_DISABLE_HEIC)
+  if(WIN32)
+    target_compile_definitions(pict PRIVATE PICT_DISABLE_HEIC)
+  endif()
   target_link_libraries(pict PRIVATE
     avif
     WebP::webp WebP::webpdemux WebP::libwebpmux
