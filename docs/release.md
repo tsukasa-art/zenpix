@@ -1,184 +1,132 @@
-# リリース手順（`main` へ push 済み → npm 公開まで）
+# リリース手順
 
-**このファイルを上から順に実行すれば、`zenpix` を npm に出せる**ように書いてある。  
-機密（npm トークン、`.npmrc`）はコミットしない。
+この手順は、ネイティブ版`zenpix`、5つのplatform optional package、`zenpix-wasm`、公開サイトを分けて検証・公開するためのチェックリストです。
 
-## 用語
+`npm publish`、website deploy、tag作成、GitHub Release作成は外部状態を変更します。**それぞれ明示的な許可を得るまで実行しません。** GitHubへのpushだけでは、既存のnpm tarballや公開済みwebsiteは更新されません。
 
-| 名前 | 意味 |
-|------|------|
-| **build** | GitHub Actions「Build & Test」（`build.yml`）。成果物: `libpict-darwin-arm64` / `libpict-darwin-x64` / `libpict-linux-x64` / `libpict-linux-arm64` / `libpict-win32-x64` |
-| **RUN_ID** | GitHub Actions の run の **database id**（URL `.../actions/runs/12345` の `12345`）|
+以下では例としてネイティブ版を`1.0.2`、WASM版を`1.1.0`とします。次回以降は対象versionへ読み替え、固定された`v1.0.0`を使わないでください。
 
-## 事前チェック（ここを飛ばさない）
+## 1. 公開差分とversionを確定する
 
-- [ ] 変更は **`main` にマージ済み**で、意図したコミットが先頭
-- [ ] **Build & Test** が **`main` で緑**（失敗 run の artifact は使わない）
-- [ ] ルート `package.json` の `version` と `optionalDependencies`、および `npm/zenpix-*/package.json` の `version` が **すべて同じ番号**
-- [ ] ルート **`CHANGELOG.md`** にそのバージョンの見出しと箇条書きがある
-- [ ] 手元: **`gh` が GitHub にログイン済み**（`gh auth status`）、**`npm whoami`** が通る
-- [ ] 作業ディレクトリは **リポジトリルート**
+- [ ] `README.md`が日本語主軸、`README.en.md`が英語版、`README.ja.md`が日本語READMEへの互換導線になっている
+- [ ] root `package.json`と5つの`npm/zenpix-*/package.json`の`version`が同じ
+- [ ] root `optionalDependencies`の5件が上記versionと同じ
+- [ ] `wasm/package.json`はWASM固有のversionになっている
+- [ ] `CHANGELOG.md`で`zenpix`と`zenpix-wasm`の変更内容を分けている
+- [ ] `.claude_state.md`など公開対象外の内部ファイルやcommitを含めない
 
----
-
-## Phase 0 — コミットと `main` への push
-
-npm publish より先に、バージョン・CHANGELOG・README・各 `npm/zenpix-*/package.json` を **コミットして `origin/main` に push** する。
-
-1. `git status` で **不要なファイルが混ざっていない**ことを確認。
-2. リリースに含めるファイルを add:
-
-   ```bash
-   git add package.json CHANGELOG.md README.md README.ja.md \
-     npm/zenpix-darwin-arm64/package.json \
-     npm/zenpix-darwin-x64/package.json \
-     npm/zenpix-linux-x64/package.json \
-     npm/zenpix-linux-arm64/package.json \
-     npm/zenpix-win32-x64/package.json
-   ```
-
-3. コミット・push:
-
-   ```bash
-   git commit -m "chore(release): zenpix X.Y.Z"
-   git push origin main
-   ```
-
-4. **Build & Test** が **`main` で緑**になるまで待つ。
-
----
-
-## Phase 1 — ネイティブ `zenpix`（optional → メタパッケージ）
-
-**順序**: optional パッケージ（5つ）を先に publish → ルート `zenpix` を publish。
-
-### 1.1 `libpict` を CI 成果物で `npm/zenpix-*/` に置く
+確認例：
 
 ```bash
-gh run list --workflow=build.yml --branch main --limit 5
+node -e 'const fs=require("node:fs"); const root=require("./package.json"); for (const dir of fs.readdirSync("npm")) { const p=require(`./npm/${dir}/package.json`); console.log(p.name, p.version, root.optionalDependencies[p.name]); } console.log("zenpix", root.version); console.log("zenpix-wasm", require("./wasm/package.json").version)'
 ```
 
-先頭の**緑**の run の `ID` 列をコピーする。
+## 2. buildとテスト
+
+ネイティブ依存を導入済みの環境で、CMake cacheを再生成し、既存成果物をcleanしてからbuildします。
 
 ```bash
-export RUN_ID=実際の数字
-
-rm -rf /tmp/libpict-darwin-arm64 /tmp/libpict-darwin-x64 \
-       /tmp/libpict-linux-x64 /tmp/libpict-linux-arm64 /tmp/libpict-win32-x64
-
-gh run download "$RUN_ID" -n libpict-darwin-arm64 -D /tmp/libpict-darwin-arm64
-gh run download "$RUN_ID" -n libpict-darwin-x64   -D /tmp/libpict-darwin-x64
-gh run download "$RUN_ID" -n libpict-linux-x64    -D /tmp/libpict-linux-x64
-gh run download "$RUN_ID" -n libpict-linux-arm64  -D /tmp/libpict-linux-arm64
-gh run download "$RUN_ID" -n libpict-win32-x64    -D /tmp/libpict-win32-x64
+cmake --fresh -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --clean-first --parallel
+bun run test/lanczos_precision.ts
+bun run test/ops_precision.ts
+npm run build
+npx tsc --noEmit
 ```
 
-確認:
+Linuxでは`.so`、Windowsでは`.dll`へ読み替えます。Node.js / Bun / Deno API、CLI変換も実画像で確認します。Denoの通常経路は`--allow-ffi --allow-read`だけ、`ZENPIX_LIB`上書き経路は`--allow-env=ZENPIX_LIB`も付けて確認します。
+
+WASM成果物は次を確認します。
 
 ```bash
-ls -la /tmp/libpict-darwin-arm64/libpict.dylib
-ls -la /tmp/libpict-darwin-x64/libpict.dylib
-ls -la /tmp/libpict-linux-x64/libpict.so
-ls -la /tmp/libpict-linux-arm64/libpict.so
-ls -la /tmp/libpict-win32-x64/libpict.dll
+npm run build:wrapper --prefix wasm
+node wasm/test.node.mjs
 ```
 
-`npm/` へコピー:
+## 3. 全7 packageをpackする
+
+rootの`npm pack`は`prepack`からTypeScriptのclean buildを実行します。`prepublishOnly`だけには依存しません。
 
 ```bash
-cp /tmp/libpict-darwin-arm64/libpict.dylib npm/zenpix-darwin-arm64/
-cp /tmp/libpict-darwin-x64/libpict.dylib   npm/zenpix-darwin-x64/
-cp /tmp/libpict-linux-x64/libpict.so       npm/zenpix-linux-x64/
-cp /tmp/libpict-linux-arm64/libpict.so     npm/zenpix-linux-arm64/
-cp /tmp/libpict-win32-x64/libpict.dll      npm/zenpix-win32-x64/
-
-cp LICENSE THIRD_PARTY_LICENSES npm/zenpix-darwin-arm64/
-cp LICENSE THIRD_PARTY_LICENSES npm/zenpix-darwin-x64/
-cp LICENSE THIRD_PARTY_LICENSES npm/zenpix-linux-x64/
-cp LICENSE THIRD_PARTY_LICENSES npm/zenpix-linux-arm64/
-cp LICENSE THIRD_PARTY_LICENSES npm/zenpix-win32-x64/
+npm pack --dry-run --json
+npm pack ./npm/zenpix-darwin-arm64 --dry-run --json
+npm pack ./npm/zenpix-darwin-x64 --dry-run --json
+npm pack ./npm/zenpix-linux-arm64 --dry-run --json
+npm pack ./npm/zenpix-linux-x64 --dry-run --json
+npm pack ./npm/zenpix-win32-x64 --dry-run --json
+npm pack ./wasm --dry-run --json
 ```
 
-### 1.2 optional パッケージを publish
+各JSONの`files`を確認し、全tarballに`LICENSE`と`THIRD_PARTY_LICENSES`があることを機械的に検査します。rootではbuild後の`js/dist/index.js`、`index.d.ts`、`index.deno.js`、`cli.js`が入ること、WASMでは次が入ることを確認します。
+
+- `dist/avif.js`, `dist/avif.wasm`
+- `dist/avif.simd.js`, `dist/avif.simd.wasm`
+- `js/index.js`, `js/index.d.ts`, `js/index.ts`
+- `README.md`, `CHANGELOG.md`, `LICENSE`, `THIRD_PARTY_LICENSES`
+
+## 4. packed zenpix-wasmをブラウザで検証する
+
+リポジトリ外の一時projectへローカルtarballをinstallし、次を確認します。
+
+- [ ] Vite production buildが成功する
+- [ ] browser native ESMでもpackageの実ファイルをimportできる
+- [ ] `import createAvifModule from "zenpix-wasm"`がbaseline raw factoryを返す
+- [ ] `import { createAvifEncoder } from "zenpix-wasm/encoder"`が成功する
+- [ ] baseline / SIMDをwrapperから選択できる
+- [ ] RGB / RGBAのencode結果が得られ、出力にAVIFの`ftyp` boxがある
+
+一時projectの生成物はリポジトリへ追加しません。
+
+## 5. websiteを検証する
 
 ```bash
-npm publish npm/zenpix-darwin-arm64 --access public
-npm publish npm/zenpix-darwin-x64   --access public
-npm publish npm/zenpix-linux-x64    --access public
-npm publish npm/zenpix-linux-arm64  --access public
-npm publish npm/zenpix-win32-x64    --access public
+bun install --cwd website
+bun run --cwd website build
 ```
 
-**確認**（各パッケージが見えること）:
+READMEとwebsiteの日英説明、WASM import path、対応範囲、性能に関する注意が一致していることを確認します。deployは明示許可後だけ実行します。
+
+## 6. 公開前の外部確認
+
+- [ ] 公開対象commitが意図した履歴だけを祖先に持つ
+- [ ] GitHub Actions `Build & Test`が対象commitで成功している
+- [ ] CI成果物の5バイナリを対応するoptional packageへ配置している
+- [ ] 全7 tarballを最終versionで作り直し、内容とライセンスを再確認した
+- [ ] `npm whoami`とpublish権限を確認した
+- [ ] npm publish、website deploy、tag、GitHub Releaseについて明示許可を得た
+
+## 7. publish順
+
+明示許可後、依存されるpackageから公開します。
+
+1. `zenpix-darwin-arm64`
+2. `zenpix-darwin-x64`
+3. `zenpix-linux-arm64`
+4. `zenpix-linux-x64`
+5. `zenpix-win32-x64`
+6. `zenpix-wasm`
+7. root `zenpix`
+
+rootは5つのoptional packageの新versionがregistryに見えることを確認してからpublishします。WASMはrootの依存ではありませんが、公開物の確認順を一定にするためrootより先に置きます。
+
+## 8. registryから再取得して検証する
+
+publish後は作業treeのtarballを信用せず、registryから各versionを再取得します。
 
 ```bash
-npm info zenpix-darwin-arm64 version
-npm info zenpix-linux-x64    version
+npm pack zenpix@1.0.2
+npm pack zenpix-wasm@1.1.0
+npm pack zenpix-darwin-arm64@1.0.2
 ```
 
-### 1.3 JS dist をビルドしてルートを publish
+残り4 optional packageも同様に取得し、全7件のファイル一覧、`LICENSE`、`THIRD_PARTY_LICENSES`、version、root `optionalDependencies`を再検査します。別の一時projectでroot install/API/CLIとWASM browser E2Eも再実行します。
 
-```bash
-bun run build
-npm publish --access public
-```
+## 9. website deploy、tag、GitHub Release
 
-**確認**:
+registry再取得の検証後、明示許可がある場合だけwebsiteをdeployします。公開URLで日英ページとWASM例を確認します。
 
-```bash
-npm info zenpix version
-```
+tag名は対象versionから作り、固定値をコピーしません。ネイティブ版とWASM版でversionが異なるため、tag命名方針を決めてから作成します。GitHub Releaseも対応するtagとCHANGELOGの範囲を確認し、明示許可後だけ作成します。
 
----
+## GitHub Actionsと外部処理の境界
 
-## Phase 2 — git タグを打つ
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
----
-
-## Phase 3 — GitHub Release を作る（任意）
-
-```bash
-gh release create v1.0.0 \
-  --title "zenpix v1.0.0" \
-  --notes-file CHANGELOG.md
-```
-
----
-
-## バージョン番号を上げるとき
-
-1. ルート `package.json` の `version` を更新
-2. `optionalDependencies` 内の各 optional パッケージのバージョンも同じ番号に更新
-3. `npm/zenpix-*/package.json` の `version` を同じ番号に更新
-4. `CHANGELOG.md` に新バージョンのセクションを追加
-5. Phase 0〜3 を実行
-
-```bash
-# 一括確認
-grep '"version"' package.json npm/*/package.json
-```
-
----
-
-## トラブルシューティング
-
-### `npm publish` で 403
-
-- `.npmrc` に `//registry.npmjs.org/:_authToken=...` が設定されているか確認
-- `npm whoami` でログイン状態を確認
-
-### CI artifact が見つからない
-
-- `gh run list --workflow=build.yml` で緑の run があることを確認
-- `gh run download` の `-n` オプションは artifact 名（`libpict-darwin-arm64` など）と一致させる
-
-### optional パッケージが install されない
-
-```bash
-npm install zenpix --include=optional
-```
+現在の`.github/workflows/build.yml`は`main`と`feat/**`へのpush、`main`向けpull request、手動実行でbuild/testを起動します。npm publish、website deploy、tag、GitHub Releaseを自動実行するworkflowは含まれていません。

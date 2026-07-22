@@ -1,5 +1,5 @@
 /**
- * zenpix — High-performance image processing (C native binding)
+ * zenpix — Native C image processing via a TypeScript API
  *
  * Supported operations:
  *   decode()     — JPEG / PNG / WebP / AVIF / GIF → raw pixels（埋め込み ICC があれば返す）

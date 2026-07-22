@@ -69,6 +69,12 @@ npm install zenpix --include=optional
 deno run --allow-ffi --allow-read your-script.ts
 ```
 
+通常経路では環境変数の権限は不要です。optionalな上書きを使う場合だけ追加します。
+
+```bash
+ZENPIX_LIB=/path/to/libpict.dylib deno run --allow-ffi --allow-read --allow-env=ZENPIX_LIB your-script.ts
+```
+
 ### Windows で `libpict.dll` の読み込みに失敗
 
 VC++ 再頒布可能パッケージ（x64）が必要な場合があります。WSL2 では Linux バイナリが使われます。

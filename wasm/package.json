@@ -1,26 +1,48 @@
 {
   "name": "zenpix-wasm",
-  "version": "1.0.0",
-  "description": "Browser-side AVIF encoder for zenpix — powered by libavif + libaom compiled to WebAssembly",
+  "version": "1.1.0",
+  "description": "Browser-side AVIF encoding from raw RGB/RGBA pixels using libavif + libaom WebAssembly",
   "type": "module",
   "exports": {
-    ".": "./dist/avif.js",
-    "./simd": "./dist/avif.simd.js",
-    "./typed": "./js/index.ts"
+    ".": {
+      "import": "./dist/avif.js",
+      "default": "./dist/avif.js"
+    },
+    "./encoder": {
+      "types": "./js/index.d.ts",
+      "import": "./js/index.js"
+    },
+    "./raw": {
+      "import": "./dist/avif.js",
+      "default": "./dist/avif.js"
+    },
+    "./simd": {
+      "import": "./dist/avif.simd.js",
+      "default": "./dist/avif.simd.js"
+    },
+    "./typed": "./js/index.ts",
+    "./dist/avif.wasm": "./dist/avif.wasm",
+    "./dist/avif.simd.wasm": "./dist/avif.simd.wasm"
   },
   "files": [
     "dist/avif.js",
     "dist/avif.wasm",
     "dist/avif.simd.js",
     "dist/avif.simd.wasm",
+    "js/index.js",
+    "js/index.d.ts",
     "js/index.ts",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE",
+    "THIRD_PARTY_LICENSES"
   ],
   "scripts": {
-    "build": "bash ../scripts/build-wasm.sh",
+    "build": "bash ../scripts/build-wasm.sh && npm run build:wrapper",
     "build:simd": "bash ../scripts/build-wasm.sh --simd",
-    "build:all": "bash ../scripts/build-wasm.sh && bash ../scripts/build-wasm.sh --simd",
+    "build:all": "bash ../scripts/build-wasm.sh && bash ../scripts/build-wasm.sh --simd && npm run build:wrapper",
+    "build:wrapper": "esbuild js/index.ts --bundle=false --platform=browser --format=esm --outfile=js/index.js",
+    "prepack": "npm run build:wrapper",
     "test": "node test.node.mjs"
   },
   "keywords": ["avif", "wasm", "webassembly", "image", "encoder", "browser", "cloudflare-pages"],

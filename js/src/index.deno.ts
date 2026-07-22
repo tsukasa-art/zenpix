@@ -1,5 +1,5 @@
 /**
- * zenpix — High-performance image processing (C native binding)
+ * zenpix — Native C image processing via a TypeScript API
  * Deno entry point using Deno.dlopen
  *
  * Supported operations:
@@ -48,7 +48,7 @@ function resolveLibPath(): string {
   const ext     = plat === "darwin" ? "dylib" : plat === "win32" ? "dll" : "so";
   const pkgName = `zenpix-${plat}-${cpu}`;
 
-  const fromEnv = process.env.ZENPIX_LIB?.trim();
+  const fromEnv = readZenpixLibOverride();
   if (fromEnv && existsSync(fromEnv)) {
     return fromEnv;
   }
@@ -69,6 +69,15 @@ function resolveLibPath(): string {
         `リポジトリなら cmake -S . -B build && cmake --build build で ${buildOut} を生成するか、` +
         `環境変数 ZENPIX_LIB にフルパスを設定するか、optional ${pkgName} を入れてください。`,
     );
+  }
+}
+
+function readZenpixLibOverride(): string | undefined {
+  try {
+    return process.env.ZENPIX_LIB?.trim() || undefined;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotCapable) return undefined;
+    throw error;
   }
 }
 

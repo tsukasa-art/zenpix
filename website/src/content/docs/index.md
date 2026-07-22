@@ -1,9 +1,11 @@
 ---
 title: Getting Started
-description: zenpix — Fast native image processing for Node.js, Bun, and Deno.
+description: A native C image-processing engine exposed through a TypeScript API and CLI.
 ---
 
-Fast image processing library written in C. Decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes to WebP / AVIF / PNG via Lanczos-3 resize. Works with Node.js, Bun, and Deno — and in the browser via [zenpix-wasm](/wasm).
+zenpix exposes a native C image-processing engine through a TypeScript API and CLI. It decodes JPEG / PNG / WebP / AVIF / GIF / HEIC and encodes WebP / AVIF / PNG after Lanczos-3 resizing on Node.js, Bun, and Deno.
+
+The browser package [zenpix-wasm](/wasm) only encodes raw RGB / RGBA pixels to AVIF. It does not include native zenpix decoding, resizing, or the CLI.
 
 - **npm (server)**: https://www.npmjs.com/package/zenpix
 - **npm (browser/WASM)**: https://www.npmjs.com/package/zenpix-wasm
@@ -33,7 +35,7 @@ Or use the `npm:` specifier directly:
 import { decode, encodeAvif } from "npm:zenpix/deno";
 ```
 
-> Requires the `--allow-ffi` flag at runtime.
+> Normal use requires `--allow-ffi` and `--allow-read` for input files. Add `--allow-env=ZENPIX_LIB` only when using the optional `ZENPIX_LIB` override.
 
 **Browser / Cloudflare Pages (WASM)**
 
@@ -90,7 +92,7 @@ if (result) writeFileSync("output.avif", result);
 | Feature | Description |
 |---|---|
 | Decode | JPEG / PNG / WebP / AVIF / GIF (first frame) |
-| Resize | Lanczos-3, SIMD optimized (NEON/SSE2), fit modes: stretch / contain / cover |
+| Resize | Scalar two-pass Lanczos-3; fit modes: stretch / contain / cover |
 | Encode | WebP / AVIF (configurable threads) / PNG |
 | CLI | `npx zenpix` (batch & stdin/stdout support) |
 | RGBA | Background removal, rounded corners, white background compositing |
@@ -98,13 +100,8 @@ if (result) writeFileSync("output.avif", result);
 
 ---
 
-## CPU Efficiency vs Sharp
+## Reading performance measurements
 
-zenpix excels in CPU efficiency on low-core VPS environments (3840×2160 → 1920×1080 AVIF, quality=60):
+Processing time varies with the CPU, thread count, image characteristics, resolution, and dependency versions. Historical measurements include selected low-core VPS cases where zenpix was faster and macOS or other-image cases where Sharp was faster.
 
-| Tool | wall-clock | CPU user |
-|---|---:|---:|
-| Sharp (libvips auto-thread) | 0.422s | 2.630s |
-| zenpix speed=6 (threads=14) | 0.610s | **1.060s** |
-
-CPU user is **~40% of Sharp** — roughly **2.5× more requests** for the same CPU budget. See [Benchmarks](/benchmarks) for details.
+Numbers without redistributable fixtures are not treated as general performance evidence. See [Benchmarks](/benchmarks) for conditions and limitations.

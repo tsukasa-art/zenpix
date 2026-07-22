@@ -1,120 +1,90 @@
 # ベンチマーク
 
----
+zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解像度、コーデック実装によって変わります。**zenpixが一般にSharpより速い、または常に高画質であるとは主張しません。**
 
-## 比較の読み方
+このページの数値は2026-05-25に実施した過去の測定記録です。測定に使用した画像には再配布できないものが含まれ、`test/fixtures/`と`bench/results/`はGit管理対象外です。そのため、表の数値は第三者がclone直後に再現できる一般性能の根拠ではなく、条件依存の参考値として扱ってください。
 
-**ratio = Sharp 中央値 ÷ zenpix 中央値**（1 超なら zenpix が速い）
+## 測定方法
 
-パイプライン: PNG decode → Sharp でリサイズ → AVIF encode (quality=60, speed=6)  
-warm-up 2・計測 10、各セルは wall-clock 中央値の ratio
+- パイプライン: PNG decode → resize → AVIF encode
+- AVIF: `quality=60`, `speed=6`
+- warm-up 2回、計測10回、wall-clock中央値
+- ratio = Sharp中央値 ÷ zenpix中央値
+- ratioが1を超える場合はその測定でzenpixが速く、1未満の場合はSharpが速い
 
----
+ベンチマーク実装は[`bench/bench.ts`](../../bench/bench.ts)と[`bench/bench-threads.ts`](../../bench/bench-threads.ts)です。結果JSONには実行環境の完全なメタデータが含まれないため、異なる環境の数値を直接比較しないでください。
 
-## VPS 実測（Ubuntu・vCPU 2・RAM 2 GB）
+## 過去の測定結果
 
-2026-05-25 計測、zenpix 1.0.0
+### Ubuntu VPS・2 vCPU・2 GB RAM
 
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+zenpix 1.0.0、シングルスレッド、2026-05-25測定。
+
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input（タイル系） | 0.19 | 0.18 | 0.25 |
-| bench_chara_chika（キャラ） | **1.43** | **1.35** | **1.29** |
-| bench_chara_kanata（キャラ） | **1.46** | **1.35** | **1.29** |
-| bench_landscape_dark（風景） | **1.14** | **1.27** | 1.01 |
-| bench_landscape_impasto（厚塗り） | **1.62** | **1.45** | **1.63** |
-| bench_landscape_light（ハイキー） | 1.08 | 0.60 | 0.51 |
+| タイル系 | 0.19 | 0.18 | 0.25 |
+| キャラクターイラストA | 1.43 | 1.35 | 1.29 |
+| キャラクターイラストB | 1.46 | 1.35 | 1.29 |
+| 暗色風景 | 1.14 | 1.27 | 1.01 |
+| 厚塗り風景 | 1.62 | 1.45 | 1.63 |
+| 明色風景 | 1.08 | 0.60 | 0.51 |
 
-**傾向**:
-- キャラ・厚塗り風景では zenpix が一貫して優位（1.3〜1.6×）
-- タイル系・単純構造の画像は libaom の内部パスが高速なため Sharp が優位
-- ハイキー（明部が広い）画像は FHD のみ拮抗、解像度増加で Sharp が優位になる
+この測定では一部のキャラクター・厚塗り画像でzenpixが速く、タイル系と高解像度の明色画像ではSharpが速い結果でした。
 
----
+### Apple M4 Pro・24 GB RAM
 
-## Mac 実測（14 インチ MacBook Pro・Apple M4 Pro・RAM 24 GB）
+シングルスレッド、2026-05-25測定。
 
-シングルスレッド・2026-05-25 計測
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input | 0.27 | 0.18 | 0.15 |
-| bench_chara_chika | 0.64 | 0.47 | 0.45 |
-| bench_chara_kanata | 0.63 | 0.46 | 0.45 |
-| bench_landscape_dark | 0.62 | 0.57 | 0.43 |
-| bench_landscape_impasto | 0.62 | 0.48 | 0.40 |
-| bench_landscape_light | 0.59 | 0.52 | 0.39 |
+| タイル系 | 0.27 | 0.18 | 0.15 |
+| キャラクターイラストA | 0.64 | 0.47 | 0.45 |
+| キャラクターイラストB | 0.63 | 0.46 | 0.45 |
+| 暗色風景 | 0.62 | 0.57 | 0.43 |
+| 厚塗り風景 | 0.62 | 0.48 | 0.40 |
+| 明色風景 | 0.59 | 0.52 | 0.39 |
 
-**傾向**: Mac では全セルで Sharp が速い。Sharp（libvips）が M4 Pro の多コアを活用しているため。**VPS 表が実運用上のメイン指標**。Mac 表はリグレッション検知用。
+この測定では全セルでSharpが速い結果でした。
 
----
+### Apple M4 Pro・zenpix `threads=14`
 
-## Mac マルチスレッド（threads=14）
-
-同条件・同フィクスチャ、`encodeAvif` に `threads=14`（`os.cpus().length`）を指定。2026-05-25 計測
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input | 0.34 | 0.22 | 0.19 |
-| bench_chara_chika | **1.13** | 0.86 | 0.81 |
-| bench_chara_kanata | **1.13** | 0.86 | 0.81 |
-| bench_landscape_dark | 0.83 | 0.87 | 0.64 |
-| bench_landscape_impasto | **1.12** | 0.85 | 0.91 |
-| bench_landscape_light | 0.84 | 0.75 | 0.57 |
+| タイル系 | 0.34 | 0.22 | 0.19 |
+| キャラクターイラストA | 1.13 | 0.86 | 0.81 |
+| キャラクターイラストB | 1.13 | 0.86 | 0.81 |
+| 暗色風景 | 0.83 | 0.87 | 0.64 |
+| 厚塗り風景 | 1.12 | 0.85 | 0.91 |
+| 明色風景 | 0.84 | 0.75 | 0.57 |
 
-**傾向**: シングルスレッドより全行で ratio が改善。キャラ系・厚塗り FHD は Sharp とほぼ互角〜微勝（1.12〜1.13×）。WQHD/4K は Sharp がリード。
+スレッド数を増やすと一部のFHD画像ではzenpixが上回りましたが、WQHD / 4Kの多くではSharpが速い結果でした。
 
-## 画質について
+## 画質設定について
 
-同じ `quality=60` でも zenpix は Sharp より多くのビット数を使い視覚的なディテールを保持します。  
-パステル・グラデーションの多いイラストで顕著で、シャープのエッジや繊細な色のニュアンスが残ります。
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。Sharpのデフォルト設定とはクロマ形式や出力サイズが異なるため、同じ`quality=60`を同一画質・同一条件とはみなしません。
 
-### なぜ品質が高いのか
+比較画像生成スクリプト[`bench/quality-compare.ts`](../../bench/quality-compare.ts)は出力ファイルとサイズを確認するためのもので、SSIM / PSNRなどの客観評価は行いません。生成画像は設定差を目視する参考に限定してください。
 
-zenpix の AVIF エンコードは **YUV 4:4:4**（クロマサブサンプリングなし）を使用しています。  
-Sharp のデフォルトは **YUV 4:2:0** で、色差成分（クロマ）を水平・垂直それぞれ 1/2 に間引くため、色情報の 75% が失われます。
+## 手元で測定する
 
-| | zenpix | Sharp（デフォルト） |
-|---|---|---|
-| AVIF クロマ形式 | **YUV 4:4:4**（間引きなし） | YUV 4:2:0（75% 間引き） |
-| アルファチャンネル | **常にロスレス** | quality 設定に依存 |
+ベンチマーク画像はリポジトリに含まれていません。実行者が利用権を持つPNGを、次のファイル名で`test/fixtures/`へ配置してください。
 
-彩度の高い色・繊細なグラデーション・透過を含むイラストでは、同じ `quality` 値でも zenpix の出力のほうが色が正確に再現されます。
-
-| | zenpix | Sharp |
-|---|---|---|
-| 複雑・イラスト画像 | ディテール保持（やや大きめ） | 積極的に間引く（小さめ） |
-| シンプル・均一画像 | ほぼ同等 | ほぼ同等 |
-
----
-
-## ユースケース別推奨
-
-| ユースケース | 推奨 |
-|---|---|
-| VPS での大量変換（イラスト・キャラ系） | **zenpix**（1.3〜1.6× 速い） |
-| 画質優先（繊細なグラデーション保持） | **zenpix** |
-| シングルコア高性能マシンでの単発処理 | Sharp |
-| 単純構造・均一色の画像 | Sharp |
-
----
-
-## ベンチマークの再実行
+```text
+bench_input.png
+bench_chara_chika.png
+bench_chara_kanata.png
+bench_landscape_dark.png
+bench_landscape_impasto.png
+bench_landscape_light.png
+```
 
 ```bash
 npm run build
-
-# フルベンチマーク
 npm run bench
 
-# フィクスチャを絞る
-BENCH_FIXTURES=bench_chara_chika,bench_landscape_impasto npm run bench
-
-# マルチスレッド計測
-npm run bench:threads
+BENCH_FIXTURES=bench_input npm run bench
 AVIF_THREADS=4 npm run bench:threads
-
-# 品質比較サンプル生成
 bun bench/quality-compare.ts
 ```
 
-成果物は `bench/results/` に出力されます。
+結果はGit管理対象外の`bench/results/`へ出力されます。数値を公開する場合は、OS、CPU、メモリ、zenpix / Sharp / codecのバージョン、スレッド数、fixtureの配布可否を併記してください。

@@ -1,10 +1,10 @@
 {
   "name": "zenpix-linux-x64",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "zenpix native binary for Linux x64",
   "os": ["linux"],
   "cpu": ["x64"],
-  "files": ["libpict.so", "LICENSE"],
+  "files": ["libpict.so", "LICENSE", "THIRD_PARTY_LICENSES"],
   "license": "MIT",
   "repository": {
     "type": "git",

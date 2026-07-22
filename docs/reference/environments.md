@@ -80,6 +80,12 @@ Windows では HEIC デコードはサポートされていません。macOS ま
 deno run --allow-ffi --allow-read your-script.ts
 ```
 
+通常経路では`--allow-env`は不要です。`ZENPIX_LIB`による上書きを使う場合だけ、次のように環境変数の読み取りを許可します。
+
+```bash
+ZENPIX_LIB=/path/to/libpict.dylib deno run --allow-ffi --allow-read --allow-env=ZENPIX_LIB your-script.ts
+```
+
 ### Windows で `libpict.dll` の読み込みに失敗
 
 VC++ 再頒布可能パッケージ（x64）が必要な場合があります。Microsoft 公式サイトからインストールしてください。WSL2 では Linux バイナリが使われます。

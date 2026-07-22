@@ -73,6 +73,12 @@ Unsupported format:
 deno run --allow-ffi --allow-read your-script.ts
 ```
 
+Normal use does not require environment-variable permission. Add it only when using the optional override:
+
+```bash
+ZENPIX_LIB=/path/to/libpict.dylib deno run --allow-ffi --allow-read --allow-env=ZENPIX_LIB your-script.ts
+```
+
 ### `libpict.dll` fails to load on Windows
 
 The Visual C++ Redistributable (x64) may be required. Install it from the Microsoft website. Under WSL2, the Linux binary is used instead.

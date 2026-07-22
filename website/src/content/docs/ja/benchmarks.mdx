@@ -1,108 +1,53 @@
 ---
 title: ベンチマーク
-description: zenpix vs Sharp の VPS・Mac 実測データと比較の読み方。
+description: zenpixとSharpの条件依存の測定結果と、比較時の注意点。
 ---
 
 import AvifDemo from '../../../components/AvifDemo.astro';
 
----
+zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解像度、コーデック実装によって変わります。**zenpixが一般にSharpより速い、または常に高画質であるとは主張しません。**
 
-## 比較の読み方
+## 数値の位置付け
 
-zenpix と Sharp を比較するとき、**wall-clock** と **CPU user** の2軸で見ることが重要です。
+以下は2026-05-25にzenpix 1.0.0で実施した過去の測定記録です。入力画像には再配布できないものが含まれるため、第三者がclone直後に再現できる一般性能の根拠ではありません。
 
-| 指標 | 意味 | zenpix の立ち位置 |
-|---|---|---|
-| **wall-clock** | 処理が完了するまでの実時間 | Sharp がリード（単発リクエストなら Sharp が速い） |
-| **CPU user** | プロセスが消費した全コアの合算 CPU 時間 | zenpix が大幅に小さい |
+- PNG decode → resize → AVIF encode
+- `quality=60`, `speed=6`
+- warm-up 2回、計測10回、wall-clock中央値
+- ratio = Sharp中央値 ÷ zenpix中央値
+- ratio > 1はその測定でzenpixが速く、ratio < 1はSharpが速い
 
-**CPU user が重要な理由**: 2〜4 コアの VPS で複数リクエストを同時処理するとき、CPU user の差はコアの奪い合いとなり他リクエストの遅延に直結します。
+## 条件によって結果は反転する
 
----
+| 環境・画像 | 結果の傾向 |
+|---|---|
+| Ubuntu VPS・2 vCPUの一部キャラクター／厚塗り画像 | zenpixが1.29〜1.63 ratio |
+| 同VPSのタイル系・高解像度の明色画像 | Sharpが速い |
+| Apple M4 Pro・zenpixシングルスレッド | 測定した全セルでSharpが速い |
+| Apple M4 Pro・zenpix `threads=14` | 一部FHDではzenpixが上回り、WQHD / 4Kの多くはSharpが速い |
 
-## 一点比較（手動計測）
+再配布可能なfixtureがないため、上記の範囲を超えて「zenpixはSharpより高速」と一般化しません。測定コードはGitHubの`bench/`にあり、手元の利用権を持つ画像で実行できます。
 
-**条件**: 3840×2160 PNG → 1920×1080 AVIF（quality=60）  
-**環境**: macOS aarch64（Apple M4 Pro）、イラスト系フィクスチャ（`bench_chara_chika.png`）  
-**バージョン**: zenpix 0.8.0
+## 画質設定について
 
-| ツール | wall-clock | CPU user | ファイルサイズ |
-|---|---:|---:|---:|
-| Sharp quality=60（libvips 自動スレッド） | 0.422s | 2.630s | 63 KB |
-| zenpix speed=10（シングルスレッド） | 0.512s | 0.530s | 106 KB |
-| zenpix speed=6（シングルスレッド） | 0.992s | 1.000s | 73 KB |
-| **zenpix speed=6（threads=14）** | **0.610s** | 1.060s | 73 KB |
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。異なるエンコーダの同じ`quality`値は同じ画質を意味せず、出力サイズも異なります。現在の比較スクリプトはSSIM / PSNR評価を行わないため、サンプル画像は設定差を目視する参考に限定してください。
 
----
+## ブラウザでAVIF encodeを試す
 
-## マトリクスベンチ（bench/bench.ts）
-
-**条件**: PNG decode → Sharp で代表解像度へリサイズ → AVIF encode（quality=60 / speed=6）  
-**ratio = Sharp 中央値 ÷ zenpix 中央値**（1 超なら zenpix が速い）
-
-### VPS 実測（Ubuntu・2vCPU・2GB）
-
-3 回計測、各セルで 3 値の中央値を採用。2026-05-04 計測、zenpix 0.4.0。
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input（タイル系） | 0.26 | 0.25 | 0.24 |
-| bench_chara_chika | **1.35** | **1.26** | **1.21** |
-| bench_chara_kanata | **1.36** | **1.27** | **1.21** |
-| bench_landscape_dark | **1.13** | **1.20** | 0.97 |
-| bench_landscape_impasto | **1.47** | **1.37** | **1.44** |
-| bench_landscape_light | **1.03** | 0.93 | 0.79 |
-
-### Mac 実測（M4 Pro・14コア）
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input | 0.26 | 0.18 | 0.15 |
-| bench_chara_chika | 0.60 | 0.44 | 0.41 |
-| bench_chara_kanata | 0.63 | 0.46 | 0.38 |
-| bench_landscape_dark | 0.55 | 0.51 | 0.38 |
-| bench_landscape_impasto | 0.57 | 0.44 | 0.37 |
-| bench_landscape_light | 0.53 | 0.46 | 0.35 |
-
-### Mac マルチスレッド（threads=14）
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input | 0.33 | 0.22 | 0.19 |
-| bench_chara_chika | **1.01** | 0.77 | 0.69 |
-| bench_chara_kanata | **1.00** | 0.76 | 0.70 |
-| bench_landscape_dark | 0.69 | 0.76 | 0.54 |
-| bench_landscape_impasto | 0.95 | 0.72 | 0.78 |
-| bench_landscape_light | 0.74 | 0.64 | 0.48 |
-
----
-
-## お試し：ブラウザで AVIF 変換
-
-自分の画像で試してみてください。変換は **ブラウザ内（zenpix-wasm）** で完結し、サーバーには送信されません。
+次のデモは`zenpix-wasm`を使い、ブラウザ内でRGB / RGBA生ピクセルをAVIFへencodeします。ネイティブ版のdecode、resize、CLIは含みません。
 
 <AvifDemo />
 
----
+## 手元で測定する
 
-## まとめ
-
-| ユースケース | 推奨 |
-|---|---|
-| 単発リクエストの wall-clock 優先 | Sharp |
-| VPS・少コア環境での同時処理 | **zenpix**（CPU user が約 40%） |
-| CPU budget を per-call でコントロールしたい | **zenpix**（`threads` オプション） |
-| イラスト・キャラ系の AVIF 変換（VPS） | **zenpix**（ratio 1.2〜1.5） |
-
----
-
-## ベンチマークの再実行
+`test/fixtures/`へ利用権を持つfixtureを配置した上で実行します。
 
 ```bash
 npm run build
-npx tsx bench/bench.ts
-
-BENCH_FIXTURES=bench_input,bench_chara_chika npx tsx bench/bench.ts
-npm run bench:threads
-npm run bench:quality
+npm run bench
+BENCH_FIXTURES=bench_input npm run bench
+AVIF_THREADS=4 npm run bench:threads
+bun bench/quality-compare.ts
 ```
+
+公開する結果には、OS、CPU、メモリ、依存バージョン、スレッド数、fixtureの配布可否を併記してください。

@@ -3,7 +3,7 @@ title: ブラウザ（WASM）
 description: zenpix-wasm — WebAssembly にコンパイルしたブラウザ向け AVIF エンコーダ。
 ---
 
-`zenpix-wasm` はブラウザ上で完全に AVIF エンコードを行います。サーバーへの送信は不要です。ネイティブ版と同じ libavif + libaom を Emscripten で WebAssembly にコンパイルしています。
+`zenpix-wasm` はブラウザ内でRGB / RGBA生ピクセルをAVIFへencodeします。サーバーへの送信は不要です。ネイティブ版のdecode、resize、CLIは含みません。libavif + libaomをEmscriptenでWebAssemblyにコンパイルしています。
 
 - **npm**: https://www.npmjs.com/package/zenpix-wasm
 - **GitHub**: https://github.com/tsukasa-art/zenpix
@@ -14,7 +14,7 @@ description: zenpix-wasm — WebAssembly にコンパイルしたブラウザ向
 
 | 用途 | パッケージ |
 |---|---|
-| Node.js / Bun / Deno サーバー | `zenpix`（ネイティブ・最速） |
+| Node.js / Bun / Deno サーバー | `zenpix`（ネイティブの全パイプライン） |
 | ブラウザ / Cloudflare Pages 静的 JS | `zenpix-wasm` |
 | Cloudflare Workers Free | 非対応（CPU 10ms 制限） |
 
@@ -37,7 +37,7 @@ npm list zenpix-wasm
 ## クイックスタート
 
 ```typescript
-import { createAvifEncoder } from "zenpix-wasm";
+import { createAvifEncoder } from "zenpix-wasm/encoder";
 
 const enc = await createAvifEncoder();
 
@@ -54,28 +54,32 @@ enc.dispose(); // WASM ヒープを解放（省略可、GC が回収する）
 
 ---
 
-## SIMD 版 vs baseline 版
+## SIMD版とbaseline版
 
-2 種類のビルドがあります。SIMD 版は約 15% 高速ですが、モダンブラウザが必要です。
+`zenpix-wasm/encoder`が高水準wrapperです。既定ではbaseline版を選び、`{ variant: "simd" }`でSIMD版を選択できます。`zenpix-wasm/simd`はEmscripten生成factoryのraw exportです。
 
-| インポート | 対応ブラウザ | 速度 |
-|---------|------------|------|
-| `zenpix-wasm` | 全ブラウザ | 基準 |
-| `zenpix-wasm/simd` | Chrome 91+ / Firefox 89+ / Safari 16.4+ | ~15% 高速 |
+2026-05-28にChrome / macOS arm64、`quality=60`、`speed=10`で測定した記録では、SIMD版は画像サイズによりbaseline版と同等から約21%短い処理時間でした。入力fixtureが再現可能な形で残っていないため、この数値は当時の条件に限る記録であり、一般性能の根拠にはしません。
 
-**SIMD 対応の自動検出（推奨）：**
+raw SIMD factoryを使う場合は、WASM URLを明示して初期化します。
 
 ```typescript
-const simdSupported = WebAssembly.validate(new Uint8Array([
-  0,97,115,109,1,0,0,0,1,5,1,96,0,1,123,3,2,1,0,10,10,1,8,0,65,0,253,15,253,98,11
-]));
+import createAvifModule from "zenpix-wasm/simd";
+import wasmUrl from "zenpix-wasm/dist/avif.simd.wasm?url";
 
-const { createAvifEncoder } = simdSupported
-  ? await import("zenpix-wasm/simd")
-  : await import("zenpix-wasm");
-
-const enc = await createAvifEncoder();
+const Module = await createAvifModule({
+  locateFile: (file: string) => file.endsWith(".wasm") ? wasmUrl : file,
+});
 ```
+
+raw factoryでは`_malloc`、`_avif_encode`、`_avif_get_out_size`、`_avif_free_output`、`_free`を直接扱います。通常は高水準wrapperを使用してください。
+
+1.0.0との互換性のため、package rootはbaseline版のraw factoryを維持します。
+
+```typescript
+import createAvifModule from "zenpix-wasm";
+```
+
+`zenpix-wasm/raw`は同じraw factoryへの明示的aliasです。このpackageは引き続きESM・browser向けです。Node.js smoke testは生成したWASM成果物を検証しますが、Node.jsでbrowser APIの動作を保証するものではありません。
 
 ---
 
@@ -85,29 +89,18 @@ Vite では `.wasm` ファイルを URL として渡す必要があります：
 
 ```typescript
 import wasmUrl from "zenpix-wasm/dist/avif.wasm?url";
-import { createAvifEncoder } from "zenpix-wasm";
+import { createAvifEncoder } from "zenpix-wasm/encoder";
 
-const enc = await createAvifEncoder(wasmUrl);
+const enc = await createAvifEncoder({ variant: "baseline", wasmUrl });
 ```
-
-SIMD 版の場合：
-
-```typescript
-import wasmUrl from "zenpix-wasm/dist/avif.simd.wasm?url";
-import { createAvifEncoder } from "zenpix-wasm/simd";
-
-const enc = await createAvifEncoder(wasmUrl);
-```
-
----
 
 ## Worker での使用（大画像・低 speed 設定時）
 
-`speed=10` で 1024×1024 が約 60ms かかります。UI をブロックしないよう `Worker` 内での実行を推奨します：
+処理時間は端末、画像、設定によって変わります。UIをブロックしないよう、必要に応じて`Worker`内で実行します。
 
 ```js
 // avif-worker.js
-import { createAvifEncoder } from "zenpix-wasm";
+import { createAvifEncoder } from "zenpix-wasm/encoder";
 
 const enc = await createAvifEncoder();
 
@@ -133,15 +126,23 @@ worker.onmessage = ({ data: { avif } }) => {
 
 ## API
 
-### `createAvifEncoder(wasmUrl?)`
+### `createAvifEncoder(options?)`
 
 WASM モジュールをロードして `AvifEncoder` を返します。
 
 ```typescript
-async function createAvifEncoder(wasmUrl?: string): Promise<AvifEncoder>
+type CreateAvifEncoderOptions = {
+  variant?: "baseline" | "simd";
+  wasmUrl?: string;
+};
+
+async function createAvifEncoder(
+  options?: string | CreateAvifEncoderOptions,
+): Promise<AvifEncoder>
 ```
 
-- `wasmUrl` — `avif.wasm` のパス / URL（省略時は `./avif.wasm`）。Vite などアセットをハッシュ化するバンドラーでは指定が必要です。
+- `variant` — `"baseline"`（既定）または`"simd"`。
+- `wasmUrl` — 選択した`.wasm`成果物のパス / URL。文字列引数はbaseline版`wasmUrl`の省略記法として維持します。
 
 ### `AvifEncoder`
 
@@ -170,9 +171,9 @@ async function createAvifEncoder(wasmUrl?: string): Promise<AvifEncoder>
 
 ---
 
-## パフォーマンス実測値
+## 過去の測定記録
 
-Chrome（macOS arm64）、`speed=10`、ウォームアップ 1 回除外・3 回中央値：
+2026-05-28のChrome（macOS arm64）、`speed=10`、ウォームアップ1回除外・3回中央値の記録です。入力fixtureが残っていないため再現可能なbenchmarkではなく、一般性能の根拠にはしません。
 
 | サイズ | Baseline (ms) | SIMD (ms) | Speedup |
 |--------|--------------|-----------|---------|
@@ -180,4 +181,4 @@ Chrome（macOS arm64）、`speed=10`、ウォームアップ 1 回除外・3 回
 | 512×512    | 16.5 | 14.6 | 1.13× |
 | 1024×1024  | 60.5 | 53.1 | 1.14× |
 
-これらはすべて `speed=10`（最速設定）の値です。speed を下げると高品質になりますが、10〜30 倍程度遅くなります。
+これらはすべて`speed=10`での値です。異なる端末、入力、quality / speed設定では結果が変わります。

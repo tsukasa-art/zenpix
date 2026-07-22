@@ -1,6 +1,6 @@
 # zenpix ドキュメント
 
-C 製の高速画像処理ライブラリ。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。Node.js / Bun / Deno 対応。ブラウザ向けには `zenpix-wasm` を使います。
+Cネイティブ画像処理エンジンをTypeScript API / CLIから利用するライブラリです。JPEG / PNG / WebP / AVIF / GIF / HEICをデコードし、Lanczos-3リサイズを経てWebP / AVIF / PNGへエンコードします。Node.js / Bun / Denoに対応します。ブラウザ向けの`zenpix-wasm`は別実装で、RGB / RGBA生ピクセルからのAVIF encodeだけを提供します。
 
 - **npm（サーバー）**: https://www.npmjs.com/package/zenpix
 - **npm（ブラウザ / WASM）**: https://www.npmjs.com/package/zenpix-wasm
@@ -22,8 +22,10 @@ npm install zenpix
 
 ```typescript
 import { decode, encodeAvif } from "npm:zenpix/deno";
-// 実行時に --allow-ffi フラグが必要
+// 通常は --allow-ffi と入力ファイル用の --allow-read が必要
 ```
+
+`ZENPIX_LIB`でライブラリを上書きする場合だけ`--allow-env=ZENPIX_LIB`も必要です。
 
 **ブラウザ / Cloudflare Pages（WASM）**
 
@@ -91,7 +93,7 @@ if (avif) writeFileSync("output.avif", avif);
 | 機能 | 内容 |
 |---|---|
 | デコード | JPEG / PNG / WebP / AVIF / GIF（先頭フレーム）/ HEIC·HEIF（macOS・Linux） |
-| リサイズ | Lanczos-3、SIMD 最適化（NEON/SSE2）、fit モード（stretch / contain / cover） |
+| リサイズ | scalar 2-pass Lanczos-3、fit モード（stretch / contain / cover） |
 | エンコード | WebP / AVIF（threads 指定可）/ PNG |
 | CLI | `npx zenpix`（バッチ・stdin/stdout 対応） |
 | RGBA | 背景除去・角丸・白背景合成 |
@@ -99,16 +101,9 @@ if (avif) writeFileSync("output.avif", avif);
 
 ---
 
-## VPS 環境でのパフォーマンス（対 Sharp）
+## 性能の読み方
 
-2 vCPU の VPS で複雑なイラスト・キャラクター画像を変換する場合：
-
-| フィクスチャ | FHD ratio | WQHD ratio | 4K ratio |
-|---|:---:|:---:|:---:|
-| キャラクターイラスト | **1.43×** | **1.35×** | **1.29×** |
-| 厚塗り風景 | **1.62×** | **1.45×** | **1.63×** |
-
-ratio = Sharp 中央値 ÷ zenpix 中央値。詳細は [ベンチマーク](./benchmarks.md) を参照してください。
+処理時間はCPU、スレッド数、画像、解像度、codec設定によって変わり、Sharpより速い結果と遅い結果の両方があります。再配布できないfixtureで得た過去の数値は、その条件の記録であり一般性能の根拠にはしません。詳細は[ベンチマーク](./benchmarks.md)を参照してください。
 
 ---
 
