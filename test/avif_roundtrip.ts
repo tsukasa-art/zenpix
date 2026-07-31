@@ -6,8 +6,7 @@
  *   ZENPIX_LIB="$PWD/build/libpict.dylib" bun run test/avif_roundtrip.ts
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import sharp from "sharp";
 import { decode, encodeAvif, type ImageBuffer } from "../js/dist/index.js";
 
 let passed = 0;
@@ -69,7 +68,14 @@ function syntheticRgba(icc?: Buffer): ImageBuffer {
 }
 
 {
-  const fixture = readFileSync(join(import.meta.dir, "fixtures/bench_landscape_light.png"));
+  const fixture = await sharp({
+    create: {
+      width: 2,
+      height: 2,
+      channels: 3,
+      background: { r: 64, g: 128, b: 192 },
+    },
+  }).withIccProfile("srgb").png().toBuffer();
   const fixtureImage = decode(fixture);
   assert(fixtureImage.icc && fixtureImage.icc.byteLength > 0, "ICC fixture did not decode with an ICC profile");
 

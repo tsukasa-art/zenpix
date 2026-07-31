@@ -2,7 +2,13 @@
   "name": "zenpix",
   "version": "0.1.0",
   "dependencies": [
-    "libavif",
+    {
+      "name": "libavif",
+      "features": [
+        "aom",
+        "dav1d"
+      ]
+    },
     "libwebp",
     "libjpeg-turbo",
     "libpng"
