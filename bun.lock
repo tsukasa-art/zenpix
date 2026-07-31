@@ -14,11 +14,11 @@
         "typescript": "^5.8.0",
       },
       "optionalDependencies": {
-        "zenpix-darwin-arm64": "1.0.0",
-        "zenpix-darwin-x64": "1.0.0",
-        "zenpix-linux-arm64": "1.0.0",
-        "zenpix-linux-x64": "1.0.0",
-        "zenpix-win32-x64": "1.0.0",
+        "zenpix-darwin-arm64": "1.0.1",
+        "zenpix-darwin-x64": "1.0.1",
+        "zenpix-linux-arm64": "1.0.1",
+        "zenpix-linux-x64": "1.0.1",
+        "zenpix-win32-x64": "1.0.1",
       },
     },
   },
@@ -144,5 +144,15 @@
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@7.24.6", "", {}, "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="],
+
+    "zenpix-darwin-arm64": ["zenpix-darwin-arm64@1.0.1", "", { "os": "darwin", "cpu": "arm64" }, "sha512-yezZphquVZFkSwl3Z7t/fACinSI10EbGTd4N9QqKW3Mq5FUUvxD5Xpy4eOzFBk2AMugeEdGP3u6P0YYBle1Otg=="],
+
+    "zenpix-darwin-x64": ["zenpix-darwin-x64@1.0.1", "", { "os": "darwin", "cpu": "x64" }, "sha512-qWTGSOeW5ajtLHeV7hkkAwM6WtiCud5CVdEPXL/JwWbc6mHxQo5yqSfIUBP+8FCYKZ/K0wJAW2pWz1iu10oLDA=="],
+
+    "zenpix-linux-arm64": ["zenpix-linux-arm64@1.0.1", "", { "os": "linux", "cpu": "arm64" }, "sha512-f1GqBHugZaCFq157sXlOGfqJLlm9FU9zoCmosSGLIzUKv8SvziYPkHfR0LCHQurnAjRFeDUf99eit2rd9NOuyw=="],
+
+    "zenpix-linux-x64": ["zenpix-linux-x64@1.0.1", "", { "os": "linux", "cpu": "x64" }, "sha512-L45cj93xCV3HQF/ZRjOkODT7WOcFFT3l/3Qshrb0QG3Ehpt2YTFT9W/lnvhasm+764vy5yb5v7N70tAoeyGJEQ=="],
+
+    "zenpix-win32-x64": ["zenpix-win32-x64@1.0.1", "", { "os": "win32", "cpu": "x64" }, "sha512-BzVYdZBK7TrQC6O3O2dhPY/uroPblnJRfOGOX3jFb/XWtBbXYKnx2jAazjrstGlgzFjmMsxa5E2sczw9ykzNOw=="],
   }
 }
