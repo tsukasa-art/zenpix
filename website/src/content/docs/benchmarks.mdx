@@ -1,132 +1,83 @@
 ---
 title: Benchmarks
-description: zenpix vs Sharp — real-world measurements on VPS and Mac, with guidance on reading the results.
+description: Condition-dependent zenpix and Sharp measurements and their limitations.
 ---
 
 import AvifDemo from '../../components/AvifDemo.astro';
 
----
+Processing time varies with the CPU, thread count, image characteristics, resolution, and codec implementation. **We do not claim that zenpix is generally faster than Sharp or always produces higher quality.**
 
-## Reading the Results
+## Scope of the original motivation
 
-When comparing zenpix and Sharp, two axes matter: **wall-clock** and **CPU user**.
+Before zenpix, the website's Sharp-based AVIF conversion did not finish within a practical time on a 2-vCPU, 2-GB VPS. That route did not resize before encoding. A single request generated a full-resolution WebP, a full-resolution AVIF, and an original-format output capped at 4096px, then waited for the R2 uploads. nginx waited 60 seconds for the upstream response.
 
-| Metric | Meaning | zenpix position |
-|---|---|---|
-| **wall-clock** | Real elapsed time until completion | Sharp leads (faster for single requests) |
-| **CPU user** | Total CPU time consumed across all cores | zenpix is significantly lower |
+Reproducing those three outputs with the same 4093×2894 fixture took about 7.6 seconds and peaked at roughly 0.5–0.6 GiB in a constrained Linux container on an M4 Pro; the full-resolution AVIF accounted for most of the time. The original system logs are unavailable, so we cannot distinguish an upstream timeout from memory pressure conclusively. This supports the narrower conclusion that the request design exceeded the VPS latency budget, not a general claim about Sharp's CPU or memory behavior.
 
-**Why CPU user matters**: On a 2–4 core VPS handling concurrent requests, high CPU user time means cores compete for work, directly increasing latency for other requests. A faster wall-clock tool that burns more CPU will hurt overall throughput as concurrency grows.
+## Status of the numbers
 
----
+The following summary comes from measurements made on 2026-05-25 with zenpix 1.0.0. Some input images cannot be redistributed, so these numbers are historical observations rather than evidence that a third party can reproduce immediately after cloning the repository.
 
-## Single-point Comparison (manual measurement)
+- PNG decode → resize → AVIF encode
+- `quality=60`, `speed=6`
+- two warm-ups, ten measured runs, wall-clock median
+- ratio = Sharp median ÷ zenpix median
+- ratio > 1 means zenpix was faster in that measurement; ratio < 1 means Sharp was faster
 
-**Condition**: 3840×2160 PNG → 1920×1080 AVIF (quality=60)  
-**Environment**: macOS aarch64 (Apple M4 Pro), illustration fixture (`bench_chara_chika.png`)  
-**Measurement**: `/usr/bin/time`, warm-up 3 / measure 7, median  
-**Version**: zenpix 0.8.0
+## Results change with the workload
 
-| Tool | wall-clock | CPU user | File size |
-|---|---:|---:|---:|
-| Sharp quality=60 (libvips auto-thread) | 0.422s | 2.630s | 63 KB |
-| zenpix speed=10 (single-thread) | 0.512s | 0.530s | 106 KB |
-| zenpix speed=6 (single-thread) | 0.992s | 1.000s | 73 KB |
-| **zenpix speed=6 (threads=14)** | **0.610s** | 1.060s | 73 KB |
-
-**Key takeaways**:
-- Sharp wins on wall-clock (0.422s)
-- zenpix CPU user is **~40% of Sharp** (1.060s vs 2.630s)
-- `threads=14` cuts speed=6 wall-clock from 0.992s → 0.610s (−38%) with nearly flat CPU user
-
----
-
-## Matrix Benchmark (bench/bench.ts)
-
-**Condition**: PNG decode → Sharp resize to each resolution → AVIF encode (quality=60 / speed=6)  
-warm-up 2, measure 10; each cell is the median wall-clock (ms)  
-**ratio = Sharp median ÷ zenpix median** (> 1 means zenpix is faster)
-
-### VPS (Ubuntu · 2vCPU · 2GB)
-
-3 runs; median of 3 values per cell. Measured 2026-05-04, zenpix 0.4.0.
-
-| Fixture | FHD (ratio) | WQHD (ratio) | 4K (ratio) |
-|---|---:|---:|---:|
-| bench_input (tile) | 0.26 | 0.25 | 0.24 |
-| bench_chara_chika | **1.35** | **1.26** | **1.21** |
-| bench_chara_kanata | **1.36** | **1.27** | **1.21** |
-| bench_landscape_dark | **1.13** | **1.20** | 0.97 |
-| bench_landscape_impasto | **1.47** | **1.37** | **1.44** |
-| bench_landscape_light | **1.03** | 0.93 | 0.79 |
-
-**Trend**: Tile images (bench_input) favor Sharp. Character art and impasto landscapes favor zenpix.
-
-### Mac (M4 Pro · 14 cores)
-
-3 runs; median of 3 values per cell. Measured 2026-04-15.
-
-| Fixture | FHD (ratio) | WQHD (ratio) | 4K (ratio) |
-|---|---:|---:|---:|
-| bench_input | 0.26 | 0.18 | 0.15 |
-| bench_chara_chika | 0.60 | 0.44 | 0.41 |
-| bench_chara_kanata | 0.63 | 0.46 | 0.38 |
-| bench_landscape_dark | 0.55 | 0.51 | 0.38 |
-| bench_landscape_impasto | 0.57 | 0.44 | 0.37 |
-| bench_landscape_light | 0.53 | 0.46 | 0.35 |
-
-**Trend**: All cells < 1 on Mac (Sharp wins). The Mac table is used for regression detection; the VPS table is the externally relevant one.
-
-### Mac Multi-threaded (threads=14)
-
-Same conditions, same fixtures, with `threads=14` (`os.cpus().length`) passed to `encodeAvif`. Measured 2026-05-04.
-
-| Fixture | FHD (ratio) | WQHD (ratio) | 4K (ratio) |
-|---|---:|---:|---:|
-| bench_input | 0.33 | 0.22 | 0.19 |
-| bench_chara_chika | **1.01** | 0.77 | 0.69 |
-| bench_chara_kanata | **1.00** | 0.76 | 0.70 |
-| bench_landscape_dark | 0.69 | 0.76 | 0.54 |
-| bench_landscape_impasto | 0.95 | 0.72 | 0.78 |
-| bench_landscape_light | 0.74 | 0.64 | 0.48 |
-
-**Trend**: All rows improve over single-thread. Character art FHD reaches parity with Sharp (1.00–1.01).
-
----
-
-## Try It: Convert in Your Browser
-
-Upload your own image to see the results. Conversion runs entirely **in your browser (zenpix-wasm)** — nothing is sent to a server.
-
-<AvifDemo lang="en" />
-
----
-
-## Summary
-
-| Use case | Recommendation |
+| Environment and image | Observed tendency |
 |---|---|
-| Single-request wall-clock priority | Sharp |
-| VPS / low-core concurrent workloads | **zenpix** (CPU user ~40% of Sharp) |
-| Per-call CPU budget control | **zenpix** (`threads` option) |
-| Illustration / character AVIF on VPS | **zenpix** (ratio 1.2–1.5) |
+| Ubuntu VPS, 2 vCPU, selected character and impasto illustrations | zenpix produced ratios from 1.29 to 1.63 |
+| The same VPS, tiled images and high-resolution bright images | Sharp was faster |
+| Apple M4 Pro, zenpix single-threaded | Sharp was faster in every measured cell |
+| Apple M4 Pro, zenpix `threads=14` | zenpix led on selected FHD images; Sharp led on most WQHD / 4K cases |
 
----
+Because the fixtures are not redistributable, these observations are not generalized into a claim that zenpix is faster than Sharp. The benchmark code is available under `bench/` for measurements with images you are allowed to use.
 
-## Re-running Benchmarks
+## Quality settings
+
+The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alpha-quality option to lossless; actual output also depends on codec implementation and version. The same numeric `quality` value does not mean equal visual quality across different encoders, and output sizes differ. The comparison script records output size, RGB PSNR, and RGB MAE against a common PNG and finds pairs within a 5% size gap. PSNR does not represent perceptual quality by itself, so visual inspection remains necessary.
+
+On the bright-landscape fixture measured on 2026-07-31, zenpix at q60 had 0.624 dB higher RGB PSNR but also produced a 37.8% larger file. In two near-size-matched pairs, Sharp had about 0.5 dB higher RGB PSNR. More retained detail at the same numeric quality is therefore not treated as evidence of generally better compression efficiency.
+
+## Unpublished source: scalar vs SIMD
+
+On 2026-07-31, the unpublished RGBA NEON path was compared with a forced-scalar build from the same source on an Apple M4 Pro running macOS arm64. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs; the complete measurement was repeated three times.
+
+| Workload | Threads | Range of median speedups across three trials |
+|---|---:|---:|
+| Raw RGBA resize, 1920×1080 → 960×540 | 1 | 1.136–1.149× |
+| Raw RGBA resize, 1920×1080 → 960×540 | 4 | 1.082–1.091× |
+| RGBA PNG decode → resize → AVIF (q60 / speed10) | 1 | 1.114–1.125× |
+| RGBA PNG decode → resize → AVIF (q60 / speed10) | 4 | 1.070–1.081× |
+| Raw RGB scalar fallback | 4 | 0.984–0.986× |
+
+The input fixture is not published in a redistributable form. RGBA improved in this environment; RGB is outside the SIMD path and did not improve. x86_64 SSE2 correctness was checked under Rosetta, but native Intel performance remains unverified. These results are not evidence that every zenpix workload is faster.
+
+## Supplementary 2-vCPU / 2-GB measurement
+
+A Linux arm64 container on an Apple M4 Pro was limited to 2 vCPUs, 2 GB of RAM, and no swap. A single fixture was processed sequentially under Node.js 20.19.2. At near-matched output sizes, zenpix with one thread took about 15–17% less time, while container peak memory was about 2.2–2.5 times higher. Sharp 0.34.5 selected a default concurrency of one, averaged about 1.02 CPU cores, and both implementations completed within 2 GB.
+
+This virtualized run did not reproduce either “Sharp consumes both cores” or “zenpix uses less memory.” It is not generalized to a real VPS, concurrent requests, or other fixtures. Full conditions and numbers are recorded in `docs/reference/benchmarks.md` on GitHub.
+
+## Try AVIF encoding in the browser
+
+This demo uses `zenpix-wasm` to encode raw RGB / RGBA pixels to AVIF in the browser. It does not contain native zenpix decoding, resizing, or the CLI.
+
+<AvifDemo />
+
+## Run locally
+
+Place fixtures that you have permission to use under `test/fixtures/`, then run:
 
 ```bash
 npm run build
-npx tsx bench/bench.ts
-
-# Filter fixtures
-BENCH_FIXTURES=bench_input,bench_chara_chika npx tsx bench/bench.ts
-
-# Multi-thread measurement
-npm run bench:threads
-
-# Quality-matched comparison
-npm run bench:quality
+npm run bench
+BENCH_FIXTURES=bench_input npm run bench
+AVIF_THREADS=4 npm run bench:threads
+bun bench/quality-compare.ts
+bench/run-low-resource.sh
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
 
-Results are written to `bench/results/benchmark.json` and `benchmark.md`.
+Published results should include the OS, CPU, memory, dependency versions, thread count, and whether the fixtures can be redistributed.

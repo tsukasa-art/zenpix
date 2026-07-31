@@ -2,7 +2,7 @@ name: Build & Test
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, "feat/**", "codex/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -30,19 +30,41 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.so" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.so" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.so" bun run test/avif_roundtrip.ts
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-linux-x64
@@ -70,19 +92,41 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.so" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.so" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.so" bun run test/avif_roundtrip.ts
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-linux-arm64
@@ -98,12 +142,31 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=ON -DZENPIX_BUILD_TESTS=ON && cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF -DZENPIX_BUILD_TESTS=ON && cmake --build build-scalar --parallel && ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" bun run test/resize_simd_precision.ts
+      - name: Benchmark — NEON vs scalar (3 trials)
+        run: |
+          for trial in 1 2 3; do
+            echo "trial=$trial"
+            ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" \
+              ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" \
+              BENCH_WARMUP_N=3 BENCH_MEASURE_N=15 \
+              bun run bench/resize-simd.ts
+          done
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dylib" bun run test/avif_roundtrip.ts
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-darwin-arm64
@@ -119,12 +182,31 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=ON -DZENPIX_BUILD_TESTS=ON && cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF -DZENPIX_BUILD_TESTS=ON && cmake --build build-scalar --parallel && ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" bun run test/resize_simd_precision.ts
+      - name: Benchmark — SSE2 vs scalar (3 trials)
+        run: |
+          for trial in 1 2 3; do
+            echo "trial=$trial"
+            ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" \
+              ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" \
+              BENCH_WARMUP_N=3 BENCH_MEASURE_N=15 \
+              bun run bench/resize-simd.ts
+          done
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dylib" bun run test/avif_roundtrip.ts
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-darwin-x64
@@ -152,17 +234,37 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dll" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dll" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dll" bun run test/avif_roundtrip.ts
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-win32-x64

@@ -1,120 +1,133 @@
 # ベンチマーク
 
----
+zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解像度、コーデック実装によって変わります。**zenpixが一般にSharpより速い、または常に高画質であるとは主張しません。**
 
-## 比較の読み方
+このページの数値は2026-05-25に実施した過去の測定記録です。測定に使用した画像には再配布できないものが含まれ、`test/fixtures/`と`bench/results/`はGit管理対象外です。そのため、表の数値は第三者がclone直後に再現できる一般性能の根拠ではなく、条件依存の参考値として扱ってください。
 
-**ratio = Sharp 中央値 ÷ zenpix 中央値**（1 超なら zenpix が速い）
+## 開発動機と当時のSharp経路
 
-パイプライン: PNG decode → Sharp でリサイズ → AVIF encode (quality=60, speed=6)  
-warm-up 2・計測 10、各セルは wall-clock 中央値の ratio
+zenpixを作る前のサイトでは、2 vCPU・2 GB RAMのVPS上でSharpによるAVIF変換が実用時間内に完了しませんでした。これは当時の運用上の事実ですが、「Sharpが常に全コアを使い切る」「Sharpでは低スペック環境の変換が完了しない」という一般的な性質には広げません。
 
----
+当時のアップロード実装（サイト側commit `6c182e5`から`46ddb63`の直前まで）は、入力を事前縮小せず、同じHTTPリクエスト内でフル解像度WebP q85、フル解像度AVIF q70、最大4096pxの原形式画像を順に生成し、R2へのupload完了まで待つ構成でした。圧縮後ファイルサイズには20 MB上限がありましたが、画素数上限とencodeの同時実行制限はなく、nginxの`proxy_read_timeout`は60秒でした。
 
-## VPS 実測（Ubuntu・vCPU 2・RAM 2 GB）
+2026-07-31に4093×2894の同一fixtureでこの3出力を再現すると、M4 Pro上の2 vCPU・2 GB Linux arm64コンテナでNode.js / Bunとも約7.6秒、peak memoryは約0.5〜0.6 GiBでした。別途段階別に測ると約6.8〜6.9秒はフル解像度AVIFだけが占めました。この再現にはR2通信、PostgreSQL、SSRアプリ、nginxとの資源競合を含みません。したがって、実VPSでの未完了は、フル解像度AVIFを含むrequest設計がCPU性能・共有memory・60秒の応答時間予算に合わなかった可能性が高い一方、当時のsystem logがないためtimeoutとOOMのどちらが直接原因だったかは確定していません。
 
-2026-05-25 計測、zenpix 1.0.0
+## 測定方法
 
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+- パイプライン: PNG decode → resize → AVIF encode
+- AVIF: `quality=60`, `speed=6`
+- warm-up 2回、計測10回、wall-clock中央値
+- ratio = Sharp中央値 ÷ zenpix中央値
+- ratioが1を超える場合はその測定でzenpixが速く、1未満の場合はSharpが速い
+
+ベンチマーク実装は[`bench/bench.ts`](../../bench/bench.ts)と[`bench/bench-threads.ts`](../../bench/bench-threads.ts)です。結果JSONには実行環境の完全なメタデータが含まれないため、異なる環境の数値を直接比較しないでください。
+
+## 過去の測定結果
+
+### Ubuntu VPS・2 vCPU・2 GB RAM
+
+zenpix 1.0.0、シングルスレッド、2026-05-25測定。
+
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input（タイル系） | 0.19 | 0.18 | 0.25 |
-| bench_chara_chika（キャラ） | **1.43** | **1.35** | **1.29** |
-| bench_chara_kanata（キャラ） | **1.46** | **1.35** | **1.29** |
-| bench_landscape_dark（風景） | **1.14** | **1.27** | 1.01 |
-| bench_landscape_impasto（厚塗り） | **1.62** | **1.45** | **1.63** |
-| bench_landscape_light（ハイキー） | 1.08 | 0.60 | 0.51 |
+| タイル系 | 0.19 | 0.18 | 0.25 |
+| キャラクターイラストA | 1.43 | 1.35 | 1.29 |
+| キャラクターイラストB | 1.46 | 1.35 | 1.29 |
+| 暗色風景 | 1.14 | 1.27 | 1.01 |
+| 厚塗り風景 | 1.62 | 1.45 | 1.63 |
+| 明色風景 | 1.08 | 0.60 | 0.51 |
 
-**傾向**:
-- キャラ・厚塗り風景では zenpix が一貫して優位（1.3〜1.6×）
-- タイル系・単純構造の画像は libaom の内部パスが高速なため Sharp が優位
-- ハイキー（明部が広い）画像は FHD のみ拮抗、解像度増加で Sharp が優位になる
+この測定では一部のキャラクター・厚塗り画像でzenpixが速く、タイル系と高解像度の明色画像ではSharpが速い結果でした。
 
----
+### Apple M4 Pro・24 GB RAM
 
-## Mac 実測（14 インチ MacBook Pro・Apple M4 Pro・RAM 24 GB）
+シングルスレッド、2026-05-25測定。
 
-シングルスレッド・2026-05-25 計測
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input | 0.27 | 0.18 | 0.15 |
-| bench_chara_chika | 0.64 | 0.47 | 0.45 |
-| bench_chara_kanata | 0.63 | 0.46 | 0.45 |
-| bench_landscape_dark | 0.62 | 0.57 | 0.43 |
-| bench_landscape_impasto | 0.62 | 0.48 | 0.40 |
-| bench_landscape_light | 0.59 | 0.52 | 0.39 |
+| タイル系 | 0.27 | 0.18 | 0.15 |
+| キャラクターイラストA | 0.64 | 0.47 | 0.45 |
+| キャラクターイラストB | 0.63 | 0.46 | 0.45 |
+| 暗色風景 | 0.62 | 0.57 | 0.43 |
+| 厚塗り風景 | 0.62 | 0.48 | 0.40 |
+| 明色風景 | 0.59 | 0.52 | 0.39 |
 
-**傾向**: Mac では全セルで Sharp が速い。Sharp（libvips）が M4 Pro の多コアを活用しているため。**VPS 表が実運用上のメイン指標**。Mac 表はリグレッション検知用。
+この測定では全セルでSharpが速い結果でした。
 
----
+### Apple M4 Pro・zenpix `threads=14`
 
-## Mac マルチスレッド（threads=14）
-
-同条件・同フィクスチャ、`encodeAvif` に `threads=14`（`os.cpus().length`）を指定。2026-05-25 計測
-
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
+| 画像カテゴリ | FHD ratio | WQHD ratio | 4K ratio |
 |---|:---:|:---:|:---:|
-| bench_input | 0.34 | 0.22 | 0.19 |
-| bench_chara_chika | **1.13** | 0.86 | 0.81 |
-| bench_chara_kanata | **1.13** | 0.86 | 0.81 |
-| bench_landscape_dark | 0.83 | 0.87 | 0.64 |
-| bench_landscape_impasto | **1.12** | 0.85 | 0.91 |
-| bench_landscape_light | 0.84 | 0.75 | 0.57 |
+| タイル系 | 0.34 | 0.22 | 0.19 |
+| キャラクターイラストA | 1.13 | 0.86 | 0.81 |
+| キャラクターイラストB | 1.13 | 0.86 | 0.81 |
+| 暗色風景 | 0.83 | 0.87 | 0.64 |
+| 厚塗り風景 | 1.12 | 0.85 | 0.91 |
+| 明色風景 | 0.84 | 0.75 | 0.57 |
 
-**傾向**: シングルスレッドより全行で ratio が改善。キャラ系・厚塗り FHD は Sharp とほぼ互角〜微勝（1.12〜1.13×）。WQHD/4K は Sharp がリード。
+スレッド数を増やすと一部のFHD画像ではzenpixが上回りましたが、WQHD / 4Kの多くではSharpが速い結果でした。
 
-## 画質について
+## 画質設定について
 
-同じ `quality=60` でも zenpix は Sharp より多くのビット数を使い視覚的なディテールを保持します。  
-パステル・グラデーションの多いイラストで顕著で、シャープのエッジや繊細な色のニュアンスが残ります。
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。SharpのAVIF既定も4:4:4ですが、encoder、codec version、quality scale、出力サイズは同一ではありません。そのため、同じ`quality=60`を同一画質・同一条件とはみなしません。
 
-### なぜ品質が高いのか
+比較画像生成スクリプト[`bench/quality-compare.ts`](../../bench/quality-compare.ts)は、共通のリサイズ済みPNGを基準に、各qualityの出力サイズ、RGB PSNR、RGB MAEを記録し、ファイルサイズ差が5%以内の組を抽出します。PSNRだけで知覚品質を代表できないため、目視結果と併用してください。
 
-zenpix の AVIF エンコードは **YUV 4:4:4**（クロマサブサンプリングなし）を使用しています。  
-Sharp のデフォルトは **YUV 4:2:0** で、色差成分（クロマ）を水平・垂直それぞれ 1/2 に間引くため、色情報の 75% が失われます。
+2026-07-31に明色風景fixtureを960px幅へリサイズして比較したところ、同じ`quality=60`ではzenpixの方がRGB PSNRは0.624 dB高い一方、ファイルサイズも37.8%大きくなりました。ほぼ同じサイズの組では、Sharp q57対zenpix q45でSharpが0.511 dB、Sharp q72対zenpix q60でSharpが0.499 dB高い結果でした。したがって、このfixtureの同一quality比較でzenpixが細部を多く残したことは、一般的な圧縮効率の優位性を意味しません。
 
-| | zenpix | Sharp（デフォルト） |
-|---|---|---|
-| AVIF クロマ形式 | **YUV 4:4:4**（間引きなし） | YUV 4:2:0（75% 間引き） |
-| アルファチャンネル | **常にロスレス** | quality 設定に依存 |
+## 未公開sourceのscalar対SIMD測定
 
-彩度の高い色・繊細なグラデーション・透過を含むイラストでは、同じ `quality` 値でも zenpix の出力のほうが色が正確に再現されます。
+2026-07-31にApple M4 Pro / macOS arm64 / CMake Releaseのportable baselineで、RGBA用NEONと強制scalarを同じsourceからbuildして測定しました。warm-up 3回、scalar / SIMDを交互に15組、中央値を使用し、測定全体を3回実行しました。入力fixtureは再配布可能な形で公開していないため、以下はローカルでの実装判断用記録です。
 
-| | zenpix | Sharp |
-|---|---|---|
-| 複雑・イラスト画像 | ディテール保持（やや大きめ） | 積極的に間引く（小さめ） |
-| シンプル・均一画像 | ほぼ同等 | ほぼ同等 |
+| 対象 | threads | 3回のmedian speedup範囲 |
+|---|---:|---:|
+| raw RGBA resize 1920×1080 → 960×540 | 1 | 1.136〜1.149× |
+| raw RGBA resize 1920×1080 → 960×540 | 4 | 1.082〜1.091× |
+| RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.114〜1.125× |
+| RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.070〜1.081× |
+| raw RGB scalar fallback | 4 | 0.984〜0.986× |
 
----
+RGBAではこの環境で再現可能な改善がありましたが、RGBはSIMD対象外で改善しません。x86_64はRosetta上でSSE2の正確性のみ確認し、Intel実機の性能は未確認です。この測定を「zenpix全体が常に高速化した」という主張には使用しません。
 
-## ユースケース別推奨
+## 2 vCPU・2 GB制限下の補助測定
 
-| ユースケース | 推奨 |
-|---|---|
-| VPS での大量変換（イラスト・キャラ系） | **zenpix**（1.3〜1.6× 速い） |
-| 画質優先（繊細なグラデーション保持） | **zenpix** |
-| シングルコア高性能マシンでの単発処理 | Sharp |
-| 単純構造・均一色の画像 | Sharp |
+2026-07-31にApple M4 Pro上のOrbStack Linux arm64コンテナへ2 vCPU、2 GB RAM、swapなしの上限を設定し、Node.js 20.19.2でPNG decode → cover 1920×1080 → AVIF encodeを測定しました。各試行はwarm-up 1回、計測5回の中央値とし、試行全体を3回実行しました。Sharp 0.34.5はこの環境で既定concurrencyが1でした。
 
----
+出力サイズを近づけた組の3試行中央値は次のとおりです。peak memoryはコンテナcgroup全体の値です。
 
-## ベンチマークの再実行
+| 対象 | 出力サイズ | 処理時間 | peak memory | 平均CPU使用量 |
+|---|---:|---:|---:|---:|
+| Sharp q60 | 16,446 bytes | 1,858 ms | 270 MiB | 1.02 cores |
+| zenpix q52 / 1 thread | 16,414 bytes | 1,578 ms | 584 MiB | 1.02 cores |
+| Sharp q67 | 20,027 bytes | 1,985 ms | 231 MiB | 1.02 cores |
+| zenpix q60 / 1 thread | 20,297 bytes | 1,649 ms | 587 MiB | 1.02 cores |
+
+この条件ではzenpixの処理時間が約15〜17%短い一方、peak memoryは約2.2〜2.5倍でした。両方とも2 GB内で完走し、Sharpが2コアを使い切る挙動や顕著なスケジューリング遅延は再現しませんでした。これは実VPSではなく仮想化コンテナ上の単一fixture・逐次処理であり、過去のVPSで処理が完了しなかった原因を特定する証拠ではありません。「Sharpより低メモリ」「Sharpが常に全コアを占有する」という主張には使用しません。
+
+## 手元で測定する
+
+ベンチマーク画像はリポジトリに含まれていません。実行者が利用権を持つPNGを、次のファイル名で`test/fixtures/`へ配置してください。
+
+```text
+bench_input.png
+bench_chara_chika.png
+bench_chara_kanata.png
+bench_landscape_dark.png
+bench_landscape_impasto.png
+bench_landscape_light.png
+```
 
 ```bash
 npm run build
-
-# フルベンチマーク
 npm run bench
 
-# フィクスチャを絞る
-BENCH_FIXTURES=bench_chara_chika,bench_landscape_impasto npm run bench
-
-# マルチスレッド計測
-npm run bench:threads
+BENCH_FIXTURES=bench_input npm run bench
 AVIF_THREADS=4 npm run bench:threads
-
-# 品質比較サンプル生成
 bun bench/quality-compare.ts
+bench/run-low-resource.sh
+
+# 2026年3月のサイト側Sharp 3出力経路を再現（R2通信は含まない）
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
 
-成果物は `bench/results/` に出力されます。
+結果はGit管理対象外の`bench/results/`へ出力されます。数値を公開する場合は、OS、CPU、メモリ、zenpix / Sharp / codecのバージョン、スレッド数、fixtureの配布可否を併記してください。

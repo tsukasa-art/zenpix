@@ -1,5 +1,5 @@
 /**
- * zenpix — High-performance image processing (C native binding)
+ * zenpix — Native C image processing via a TypeScript API
  * Deno entry point using Deno.dlopen
  *
  * Supported operations:
@@ -48,7 +48,7 @@ function resolveLibPath(): string {
   const ext     = plat === "darwin" ? "dylib" : plat === "win32" ? "dll" : "so";
   const pkgName = `zenpix-${plat}-${cpu}`;
 
-  const fromEnv = process.env.ZENPIX_LIB?.trim();
+  const fromEnv = readZenpixLibOverride();
   if (fromEnv && existsSync(fromEnv)) {
     return fromEnv;
   }
@@ -69,6 +69,15 @@ function resolveLibPath(): string {
         `リポジトリなら cmake -S . -B build && cmake --build build で ${buildOut} を生成するか、` +
         `環境変数 ZENPIX_LIB にフルパスを設定するか、optional ${pkgName} を入れてください。`,
     );
+  }
+}
+
+function readZenpixLibOverride(): string | undefined {
+  try {
+    return process.env.ZENPIX_LIB?.trim() || undefined;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotCapable) return undefined;
+    throw error;
   }
 }
 
@@ -93,8 +102,8 @@ const _lib = Deno.dlopen(libPath, {
     parameters: ["pointer", "u32", "u32", "u8", "f32", "u8", "pointer", "u64", "pointer"],
     result: "pointer",
   },
-  pict_encode_avif: {
-    parameters: ["pointer", "u32", "u32", "u8", "u8", "u8", "u8", "pointer"],
+  pict_encode_avif_v2: {
+    parameters: ["pointer", "u32", "u32", "u8", "u8", "u8", "u8", "pointer", "u64", "pointer"],
     result: "pointer",
   },
   pict_encode_png: {
@@ -384,11 +393,15 @@ export function encodeAvif(image: ImageBuffer, options: AvifOptions = {}): Uint8
   if (!Number.isInteger(speed)   || speed   < 0 || speed   > 10)  return null;
   if (!Number.isInteger(threads) || threads < 1)                   return null;
 
+  const icc = image.icc;
+  const iccLen = icc !== undefined && icc.byteLength > 0 ? BigInt(icc.byteLength) : 0n;
   const outLen = new BigUint64Array(1);
-  const ptr = _lib.symbols.pict_encode_avif(
+  const ptr = _lib.symbols.pict_encode_avif_v2(
     Deno.UnsafePointer.of(image.data),
     image.width, image.height, image.channels,
     quality, speed, threads,
+    icc !== undefined && icc.byteLength > 0 ? Deno.UnsafePointer.of(icc) : null,
+    iccLen,
     Deno.UnsafePointer.of(outLen),
   );
   if (ptr === null) return null;

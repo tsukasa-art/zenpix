@@ -105,7 +105,7 @@ interface WebPOptions {
 function encodeAvif(image: ImageBuffer, options?: AvifOptions): Buffer | null
 ```
 
-AVIF にエンコードします。以下の場合は `null` を返します：
+AVIF にエンコードします。`image.icc` が設定されていれば ICC プロファイルを埋め込みます。ICCがない場合はsRGBの色特性を明示します。以下の場合は `null` を返します：
 
 - `quality` が 0–100 の範囲外
 - `speed` が 0–10 の範囲外

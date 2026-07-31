@@ -60,7 +60,7 @@ int pict_webp_encode_with_icc(
 void pict_webp_free(uint8_t *data);
 
 /* avif_decode.c */
-int pict_avif_decode(
+int pict_avif_decode_v2(
     const uint8_t *src, size_t src_len,
     uint8_t **out_data, uint32_t *out_width, uint32_t *out_height,
     uint32_t *out_channels, uint8_t **out_icc, size_t *out_icc_len);
@@ -200,9 +200,9 @@ uint8_t *pict_decode_v3(
     case FMT_AVIF: {
         uint32_t w32 = 0, h32 = 0, ch32 = 0;
         size_t icc_len_sz = 0;
-        int rc = pict_avif_decode(data, len, &pixels, &w32, &h32, &ch32,
-                                  want_icc ? &icc : NULL,
-                                  want_icc ? &icc_len_sz : NULL);
+        int rc = pict_avif_decode_v2(data, len, &pixels, &w32, &h32, &ch32,
+                                     want_icc ? &icc : NULL,
+                                     want_icc ? &icc_len_sz : NULL);
         if (rc != 0 || !pixels) return NULL;
         w = w32; h = h32; ch = (unsigned int)ch32;
         if (want_icc && icc) { *out_icc = icc; *out_icc_len = icc_len_sz; }
@@ -387,17 +387,32 @@ uint8_t *pict_encode_webp(
     return pict_encode_webp_v2(pixels, width, height, channels, quality, lossless, NULL, 0, out_len);
 }
 
+uint8_t *pict_encode_avif_v2(
+    const uint8_t *pixels, uint32_t width, uint32_t height, uint8_t channels,
+    uint8_t quality, uint8_t speed, uint8_t threads,
+    const uint8_t *icc, size_t icc_len, size_t *out_len);
+
 uint8_t *pict_encode_avif(
     const uint8_t *pixels, uint32_t width, uint32_t height, uint8_t channels,
     uint8_t quality, uint8_t speed, uint8_t threads, size_t *out_len)
 {
+    return pict_encode_avif_v2(pixels, width, height, channels, quality, speed,
+                               threads, NULL, 0, out_len);
+}
+
+uint8_t *pict_encode_avif_v2(
+    const uint8_t *pixels, uint32_t width, uint32_t height, uint8_t channels,
+    uint8_t quality, uint8_t speed, uint8_t threads,
+    const uint8_t *icc, size_t icc_len, size_t *out_len)
+{
     if (!pixels || !out_len || width == 0 || height == 0) return NULL;
     if (channels != 3 && channels != 4) return NULL;
+    if ((icc == NULL) != (icc_len == 0)) return NULL;
     if (quality > 100 || speed > 10) return NULL;
     uint8_t *out = NULL;
     size_t sz = 0;
     if (pict_avif_encode(pixels, width, height, channels, quality, speed, threads,
-                         NULL, 0, &out, &sz) != 0 || !out)
+                         icc, icc_len, &out, &sz) != 0 || !out)
         return NULL;
     *out_len = sz;
     return out;

@@ -15,6 +15,8 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 
 Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). No build toolchain required.
 
+Published 1.0.2 optional packages use the scalar resize path. In the unpublished next source, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; other channel counts and unsupported CPUs fall back to scalar. The five-environment workflow is defined, but its run for the target commit and the packed artifacts remain unverified.
+
 **Unsupported environments**:
 - Alpine Linux (musl): requires glibc
 - Cloudflare Workers: CPU limits apply
@@ -73,6 +75,12 @@ Unsupported format:
 deno run --allow-ffi --allow-read your-script.ts
 ```
 
+Normal use does not require environment-variable permission. Add it only when using the optional override:
+
+```bash
+ZENPIX_LIB=/path/to/libpict.dylib deno run --allow-ffi --allow-read --allow-env=ZENPIX_LIB your-script.ts
+```
+
 ### `libpict.dll` fails to load on Windows
 
 The Visual C++ Redistributable (x64) may be required. Install it from the Microsoft website. Under WSL2, the Linux binary is used instead.
@@ -88,8 +96,14 @@ To test a newer `libpict` than what is bundled in the optional packages:
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
 # → build/libpict.{dylib,so}
 
+# Forced-scalar reference build
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
+
 # Point to it via environment variable (takes priority over optional packages)
 ZENPIX_LIB=/path/to/libpict.dylib node your-script.js
 ```
 
 Resolution order: `ZENPIX_LIB` env var → `build/libpict.*` → `optionalDependencies`
+
+`ZENPIX_ENABLE_SIMD` defaults to `ON`; `ZENPIX_BUILD_TESTS` and `ZENPIX_MARCH_NATIVE` default to `OFF`. `ZENPIX_MARCH_NATIVE` is for local measurement and is not enabled for distributable builds.

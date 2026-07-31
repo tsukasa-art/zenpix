@@ -23,10 +23,10 @@ const t = lang === 'en' ? {
   statsTime:       'Time',
   labelZenpix:     'zenpix-wasm',
   labelCanvas:     'Browser Canvas API',
-  chromaZenpix:    'YUV 4:4:4 — full color',
-  chromaCanvas:    'YUV 4:2:0 — color subsampled',
+  chromaZenpix:    'YUV 4:4:4 requested',
+  chromaCanvas:    'Browser encoder — implementation-dependent',
   notSupported:    'AVIF not supported in this browser',
-  chromaNote:      'YUV 4:4:4 retains all color information. Canvas API uses YUV 4:2:0 (same as Sharp default), discarding 75% of chroma — noticeable on illustrations and vivid gradients.',
+  chromaNote:      'zenpix-wasm requests YUV 4:4:4. Canvas AVIF settings depend on the browser, and equal quality values are not equivalent across encoders. Treat this as a comparison of this input and environment, not a general quality or performance result.',
 } : {
   ariaLabel:       '画像を選択',
   uploadText:      '画像をドロップまたはタップ',
@@ -47,10 +47,10 @@ const t = lang === 'en' ? {
   statsTime:       '処理時間',
   labelZenpix:     'zenpix-wasm',
   labelCanvas:     'ブラウザ Canvas API',
-  chromaZenpix:    'YUV 4:4:4 — 色情報を完全保持',
-  chromaCanvas:    'YUV 4:2:0 — 色差サブサンプリング',
+  chromaZenpix:    'YUV 4:4:4 を指定',
+  chromaCanvas:    'ブラウザエンコーダ — 実装依存',
   notSupported:    'このブラウザは Canvas AVIF に非対応',
-  chromaNote:      'YUV 4:4:4 は色情報をすべて保持します。Canvas API は YUV 4:2:0（Sharp のデフォルトと同じ）を使用し、色差成分を 75% 間引くため、イラストや彩度の高いグラデーションで差が出やすいです。',
+  chromaNote:      'zenpix-wasmはYUV 4:4:4を指定します。Canvas AVIFの設定はブラウザ実装に依存し、同じquality値もエンコーダ間で同条件ではありません。この入力と環境の比較として確認し、一般的な画質・性能結果として扱わないでください。',
 };
 ---
 

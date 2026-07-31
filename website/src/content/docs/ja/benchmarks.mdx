@@ -1,108 +1,83 @@
 ---
 title: ベンチマーク
-description: zenpix vs Sharp の VPS・Mac 実測データと比較の読み方。
+description: zenpixとSharpの条件依存の測定結果と、比較時の注意点。
 ---
 
 import AvifDemo from '../../../components/AvifDemo.astro';
 
----
+zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解像度、コーデック実装によって変わります。**zenpixが一般にSharpより速い、または常に高画質であるとは主張しません。**
 
-## 比較の読み方
+## 開発動機の位置付け
 
-zenpix と Sharp を比較するとき、**wall-clock** と **CPU user** の2軸で見ることが重要です。
+zenpixを作る前のサイトでは、2 vCPU・2 GB RAMのVPS上でSharpによるAVIF変換が実用時間内に完了しませんでした。当時の経路は、入力を事前縮小せず、同じrequestでフル解像度WebP、フル解像度AVIF、最大4096pxの原形式画像を生成し、R2 uploadまで待つ構成でした。nginxの応答待ちは60秒でした。
 
-| 指標 | 意味 | zenpix の立ち位置 |
-|---|---|---|
-| **wall-clock** | 処理が完了するまでの実時間 | Sharp がリード（単発リクエストなら Sharp が速い） |
-| **CPU user** | プロセスが消費した全コアの合算 CPU 時間 | zenpix が大幅に小さい |
+4093×2894の同一fixtureで3出力を再現すると、M4 Pro上の制限付きLinuxコンテナでは約7.6秒、peak memoryは約0.5〜0.6 GiBで、その大半をフル解像度AVIFが占めました。実VPSのsystem logは残っていないためtimeoutとOOMのどちらが直接原因かは確定していません。これは「当時のrequest設計がVPSの処理時間予算に合わなかった」という開発動機であり、Sharp一般のCPU・memory特性には広げません。
 
-**CPU user が重要な理由**: 2〜4 コアの VPS で複数リクエストを同時処理するとき、CPU user の差はコアの奪い合いとなり他リクエストの遅延に直結します。
+## 数値の位置付け
 
----
+以下は2026-05-25にzenpix 1.0.0で実施した過去の測定記録です。入力画像には再配布できないものが含まれるため、第三者がclone直後に再現できる一般性能の根拠ではありません。
 
-## 一点比較（手動計測）
+- PNG decode → resize → AVIF encode
+- `quality=60`, `speed=6`
+- warm-up 2回、計測10回、wall-clock中央値
+- ratio = Sharp中央値 ÷ zenpix中央値
+- ratio > 1はその測定でzenpixが速く、ratio < 1はSharpが速い
 
-**条件**: 3840×2160 PNG → 1920×1080 AVIF（quality=60）  
-**環境**: macOS aarch64（Apple M4 Pro）、イラスト系フィクスチャ（`bench_chara_chika.png`）  
-**バージョン**: zenpix 0.8.0
+## 条件によって結果は反転する
 
-| ツール | wall-clock | CPU user | ファイルサイズ |
-|---|---:|---:|---:|
-| Sharp quality=60（libvips 自動スレッド） | 0.422s | 2.630s | 63 KB |
-| zenpix speed=10（シングルスレッド） | 0.512s | 0.530s | 106 KB |
-| zenpix speed=6（シングルスレッド） | 0.992s | 1.000s | 73 KB |
-| **zenpix speed=6（threads=14）** | **0.610s** | 1.060s | 73 KB |
+| 環境・画像 | 結果の傾向 |
+|---|---|
+| Ubuntu VPS・2 vCPUの一部キャラクター／厚塗り画像 | zenpixが1.29〜1.63 ratio |
+| 同VPSのタイル系・高解像度の明色画像 | Sharpが速い |
+| Apple M4 Pro・zenpixシングルスレッド | 測定した全セルでSharpが速い |
+| Apple M4 Pro・zenpix `threads=14` | 一部FHDではzenpixが上回り、WQHD / 4Kの多くはSharpが速い |
 
----
+再配布可能なfixtureがないため、上記の範囲を超えて「zenpixはSharpより高速」と一般化しません。測定コードはGitHubの`bench/`にあり、手元の利用権を持つ画像で実行できます。
 
-## マトリクスベンチ（bench/bench.ts）
+## 画質設定について
 
-**条件**: PNG decode → Sharp で代表解像度へリサイズ → AVIF encode（quality=60 / speed=6）  
-**ratio = Sharp 中央値 ÷ zenpix 中央値**（1 超なら zenpix が速い）
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。異なるエンコーダの同じ`quality`値は同じ画質を意味せず、出力サイズも異なります。比較スクリプトは共通PNGを基準に出力サイズ、RGB PSNR、RGB MAEを記録し、サイズ差5%以内の組を抽出します。PSNRだけで知覚品質を代表できないため、目視結果と併用してください。
 
-### VPS 実測（Ubuntu・2vCPU・2GB）
+2026-07-31の明色風景fixtureでは、同じq60でzenpixのRGB PSNRが0.624 dB高い一方、出力も37.8%大きくなりました。ほぼ同じサイズの2組ではSharpのRGB PSNRが約0.5 dB高く、同一qualityで細部が残ることを一般的な圧縮効率の優位性とは扱えません。
 
-3 回計測、各セルで 3 値の中央値を採用。2026-05-04 計測、zenpix 0.4.0。
+## 未公開sourceのscalar対SIMD測定
 
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input（タイル系） | 0.26 | 0.25 | 0.24 |
-| bench_chara_chika | **1.35** | **1.26** | **1.21** |
-| bench_chara_kanata | **1.36** | **1.27** | **1.21** |
-| bench_landscape_dark | **1.13** | **1.20** | 0.97 |
-| bench_landscape_impasto | **1.47** | **1.37** | **1.44** |
-| bench_landscape_light | **1.03** | 0.93 | 0.79 |
+2026-07-31にApple M4 Pro / macOS arm64で、未公開のRGBA用NEONと強制scalarを同じsourceからbuildして比較しました。warm-up 3回、scalar / SIMDを交互に15組、測定全体を3回実行しています。
 
-### Mac 実測（M4 Pro・14コア）
+| 対象 | threads | 3回のmedian speedup範囲 |
+|---|---:|---:|
+| raw RGBA resize 1920×1080 → 960×540 | 1 | 1.136〜1.149× |
+| raw RGBA resize 1920×1080 → 960×540 | 4 | 1.082〜1.091× |
+| RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.114〜1.125× |
+| RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.070〜1.081× |
+| raw RGB scalar fallback | 4 | 0.984〜0.986× |
 
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input | 0.26 | 0.18 | 0.15 |
-| bench_chara_chika | 0.60 | 0.44 | 0.41 |
-| bench_chara_kanata | 0.63 | 0.46 | 0.38 |
-| bench_landscape_dark | 0.55 | 0.51 | 0.38 |
-| bench_landscape_impasto | 0.57 | 0.44 | 0.37 |
-| bench_landscape_light | 0.53 | 0.46 | 0.35 |
+入力fixtureは再配布可能な形で公開していません。この環境のRGBAでは改善しましたが、RGBはSIMD対象外で改善しません。x86_64はRosetta上でSSE2の正確性のみ確認し、Intel実機の性能は未確認です。この結果をzenpix全体の一般的な高速化主張には使用しません。
 
-### Mac マルチスレッド（threads=14）
+## 2 vCPU・2 GB制限下の補助測定
 
-| フィクスチャ | FHD（ratio） | WQHD（ratio） | 4K（ratio） |
-|---|---:|---:|---:|
-| bench_input | 0.33 | 0.22 | 0.19 |
-| bench_chara_chika | **1.01** | 0.77 | 0.69 |
-| bench_chara_kanata | **1.00** | 0.76 | 0.70 |
-| bench_landscape_dark | 0.69 | 0.76 | 0.54 |
-| bench_landscape_impasto | 0.95 | 0.72 | 0.78 |
-| bench_landscape_light | 0.74 | 0.64 | 0.48 |
+Apple M4 Pro上のLinux arm64コンテナへ2 vCPU・2 GB・swapなしの上限を設定し、Node.js 20.19.2で単一fixtureを逐次処理しました。出力サイズを近づけた比較では、zenpix 1 threadの処理時間が約15〜17%短い一方、コンテナpeak memoryは約2.2〜2.5倍でした。Sharp 0.34.5の既定concurrencyは1、平均CPU使用量は約1.02 coresで、両方とも2 GB内で完走しました。
 
----
+この仮想化環境では「Sharpが2コアを使い切る」「zenpixの方が低メモリ」は再現しませんでした。実VPS、並列リクエスト、別fixtureへ一般化しません。詳細な条件と数値はGitHubの`docs/reference/benchmarks.md`にあります。
 
-## お試し：ブラウザで AVIF 変換
+## ブラウザでAVIF encodeを試す
 
-自分の画像で試してみてください。変換は **ブラウザ内（zenpix-wasm）** で完結し、サーバーには送信されません。
+次のデモは`zenpix-wasm`を使い、ブラウザ内でRGB / RGBA生ピクセルをAVIFへencodeします。ネイティブ版のdecode、resize、CLIは含みません。
 
 <AvifDemo />
 
----
+## 手元で測定する
 
-## まとめ
-
-| ユースケース | 推奨 |
-|---|---|
-| 単発リクエストの wall-clock 優先 | Sharp |
-| VPS・少コア環境での同時処理 | **zenpix**（CPU user が約 40%） |
-| CPU budget を per-call でコントロールしたい | **zenpix**（`threads` オプション） |
-| イラスト・キャラ系の AVIF 変換（VPS） | **zenpix**（ratio 1.2〜1.5） |
-
----
-
-## ベンチマークの再実行
+`test/fixtures/`へ利用権を持つfixtureを配置した上で実行します。
 
 ```bash
 npm run build
-npx tsx bench/bench.ts
-
-BENCH_FIXTURES=bench_input,bench_chara_chika npx tsx bench/bench.ts
-npm run bench:threads
-npm run bench:quality
+npm run bench
+BENCH_FIXTURES=bench_input npm run bench
+AVIF_THREADS=4 npm run bench:threads
+bun bench/quality-compare.ts
+bench/run-low-resource.sh
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
+
+公開する結果には、OS、CPU、メモリ、依存バージョン、スレッド数、fixtureの配布可否を併記してください。

@@ -1,5 +1,5 @@
 /**
- * zenpix — High-performance image processing (C native binding)
+ * zenpix — Native C image processing via a TypeScript API
  *
  * Supported operations:
  *   decode()     — JPEG / PNG / WebP / AVIF / GIF → raw pixels（埋め込み ICC があれば返す）
@@ -92,8 +92,8 @@ const _encode_webp_v2 = _lib.func(
   "uint8 *pict_encode_webp_v2(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, float quality, bool lossless, uint8 *icc, uint64 icc_len, uint64 *out_len)"
 );
 
-const _encode_avif = _lib.func(
-  "uint8 *pict_encode_avif(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, uint8 quality, uint8 speed, uint8 threads, uint64 *out_len)"
+const _encode_avif_v2 = _lib.func(
+  "uint8 *pict_encode_avif_v2(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, uint8 quality, uint8 speed, uint8 threads, uint8 *icc, uint64 icc_len, uint64 *out_len)"
 );
 
 const _encode_png = _lib.func(
@@ -419,6 +419,7 @@ export function encodeWebP(image: ImageBuffer, options: WebPOptions = {}): Buffe
  *
  * libavif and libaom are statically linked in the distributed npm packages.
  * No system-level installation is required.
+ * Embeds image.icc when present; otherwise signals sRGB color characteristics.
  *
  * Returns null if:
  *   - This build was compiled without AVIF support
@@ -433,11 +434,15 @@ export function encodeAvif(image: ImageBuffer, options: AvifOptions = {}): Buffe
   if (!Number.isInteger(speed)   || speed   < 0 || speed   > 10)  return null;
   if (!Number.isInteger(threads) || threads < 1)                   return null;
 
+  const icc = image.icc;
+  const iccLen = icc !== undefined && icc.byteLength > 0 ? BigInt(icc.byteLength) : 0n;
   const outLen = new BigUint64Array(1);
-  const ptr = _encode_avif(
+  const ptr = _encode_avif_v2(
     image.data,
     image.width, image.height, image.channels,
     quality, speed, threads,
+    icc !== undefined && icc.byteLength > 0 ? icc : null,
+    iccLen,
     outLen,
   );
   if (ptr === null) return null;

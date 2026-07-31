@@ -49,6 +49,16 @@ int pict_avif_encode(
     avifImage *image = avifImageCreate(width, height, 8, AVIF_PIXEL_FORMAT_YUV444);
     if (!image) return -1;
 
+    /* Match libavif's CLI defaults for SDR RGB input. RGB->YUV conversion
+     * already falls back to BT.601 when the matrix is unspecified, so signal
+     * that conversion explicitly. If no ICC profile is present, also identify
+     * the RGB data as sRGB instead of leaving the output CICP unspecified. */
+    image->matrixCoefficients = AVIF_MATRIX_COEFFICIENTS_BT601;
+    if (icc == NULL || icc_len == 0) {
+        image->colorPrimaries = AVIF_COLOR_PRIMARIES_SRGB;
+        image->transferCharacteristics = AVIF_TRANSFER_CHARACTERISTICS_SRGB;
+    }
+
     if (icc != NULL && icc_len > 0) {
         avifResult icc_res = avifImageSetProfileICC(image, icc, icc_len);
         if (icc_res != AVIF_RESULT_OK) {

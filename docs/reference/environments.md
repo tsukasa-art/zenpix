@@ -12,6 +12,8 @@
 
 各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。ビルド環境は一切不要です。
 
+公開済み1.0.2のoptional packageはscalarです。未公開の次期sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選びます。その他のchannel / CPUはscalarへfallbackします。5環境のworkflow定義はありますが、対象commitでのActions実走と配布物確認はまだ完了していません。
+
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応
 - Cloudflare Workers: CPU 制限により非対応
@@ -80,6 +82,12 @@ Windows では HEIC デコードはサポートされていません。macOS ま
 deno run --allow-ffi --allow-read your-script.ts
 ```
 
+通常経路では`--allow-env`は不要です。`ZENPIX_LIB`による上書きを使う場合だけ、次のように環境変数の読み取りを許可します。
+
+```bash
+ZENPIX_LIB=/path/to/libpict.dylib deno run --allow-ffi --allow-read --allow-env=ZENPIX_LIB your-script.ts
+```
+
 ### Windows で `libpict.dll` の読み込みに失敗
 
 VC++ 再頒布可能パッケージ（x64）が必要な場合があります。Microsoft 公式サイトからインストールしてください。WSL2 では Linux バイナリが使われます。
@@ -96,8 +104,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 # → build/libpict.{dylib,so}
 
+# SIMDを無効にした正解基準build
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
+
 # 環境変数でパスを指定（optional より優先して読み込まれる）
 ZENPIX_LIB=/path/to/libpict.dylib node your-script.js
 ```
 
 `libpict` の解決順：`ZENPIX_LIB` 環境変数 → `build/libpict.*` → `optionalDependencies`
+
+`ZENPIX_ENABLE_SIMD`は既定で`ON`、`ZENPIX_BUILD_TESTS`と`ZENPIX_MARCH_NATIVE`は既定で`OFF`です。`ZENPIX_MARCH_NATIVE`はローカル測定用であり、配布buildでは有効にしません。

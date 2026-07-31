@@ -4,22 +4,21 @@ project(zenpix C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+option(ZENPIX_ENABLE_SIMD "Enable zenpix RGBA resize SIMD on supported CPUs" ON)
+option(ZENPIX_BUILD_TESTS "Build zenpix native resize tests" OFF)
+option(ZENPIX_MARCH_NATIVE "Tune a local source build for the current CPU" OFF)
+
 # ── Release flags ──────────────────────────────────────────────────────────
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 if(NOT MSVC)
-  # macOS: native is fine (local dev only). Linux: portable AVX2 baseline so
-  # CI-built binaries run on any x86-64 that has AVX2 (no AVX-512 required).
-  # Override: cmake -DZENPIX_MARCH_NATIVE=ON for a source build on the target machine.
-  if(APPLE)
+  # Release artifacts keep the architecture baseline: AArch64 includes NEON,
+  # and x86_64 includes SSE2. Native tuning is opt-in for local benchmarking.
+  if(ZENPIX_MARCH_NATIVE)
     set(_MARCH_FLAG "-march=native")
-  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-    if(ZENPIX_MARCH_NATIVE)
-      set(_MARCH_FLAG "-march=native")
-    else()
-      set(_MARCH_FLAG "-march=x86-64-v3")
-    endif()
+  elseif(NOT APPLE AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    set(_MARCH_FLAG "-march=x86-64")
   else()
     set(_MARCH_FLAG "")
   endif()
@@ -46,6 +45,33 @@ set(PICT_SOURCES
   src/resize.c
   src/pict.c
 )
+
+# ── zenpix resize SIMD ──────────────────────────────────────────────────────
+# AArch64 NEON and x86_64 SSE2 are architecture baselines. Unsupported CPUs,
+# or an explicit ZENPIX_ENABLE_SIMD=OFF build, compile the scalar path only.
+set(ZENPIX_TARGET_PROCESSOR "${CMAKE_SYSTEM_PROCESSOR}")
+if(APPLE AND CMAKE_OSX_ARCHITECTURES)
+  list(LENGTH CMAKE_OSX_ARCHITECTURES ZENPIX_OSX_ARCH_COUNT)
+  if(ZENPIX_OSX_ARCH_COUNT EQUAL 1)
+    list(GET CMAKE_OSX_ARCHITECTURES 0 ZENPIX_TARGET_PROCESSOR)
+  else()
+    # One intrinsic source cannot represent both slices of a universal binary.
+    # Keep universal builds portable instead of selecting the host backend.
+    set(ZENPIX_TARGET_PROCESSOR "universal")
+  endif()
+endif()
+string(TOLOWER "${ZENPIX_TARGET_PROCESSOR}" ZENPIX_SYSTEM_PROCESSOR_LOWER)
+set(ZENPIX_SIMD_BACKEND "scalar")
+set(ZENPIX_SIMD_DEFINITION "")
+if(ZENPIX_ENABLE_SIMD)
+  if(ZENPIX_SYSTEM_PROCESSOR_LOWER MATCHES "^(arm64|aarch64)$")
+    set(ZENPIX_SIMD_BACKEND "NEON")
+    set(ZENPIX_SIMD_DEFINITION PICT_SIMD_NEON=1)
+  elseif(ZENPIX_SYSTEM_PROCESSOR_LOWER MATCHES "^(x86_64|amd64)$")
+    set(ZENPIX_SIMD_BACKEND "SSE2")
+    set(ZENPIX_SIMD_DEFINITION PICT_SIMD_SSE2=1)
+  endif()
+endif()
 if(NOT WIN32)
   list(APPEND PICT_SOURCES src/heic_decode.c)
 endif()
@@ -58,6 +84,9 @@ set_target_properties(pict PROPERTIES
 )
 
 target_include_directories(pict PRIVATE ${CMAKE_SOURCE_DIR}/include)
+if(ZENPIX_SIMD_DEFINITION)
+  target_compile_definitions(pict PRIVATE ${ZENPIX_SIMD_DEFINITION})
+endif()
 
 # ── Platform-specific dependencies ────────────────────────────────────────
 # vcpkg path: Windows always, Linux/macOS when VCPKG_TARGET_TRIPLET is set
@@ -114,9 +143,31 @@ endif()
 install(TARGETS pict LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 install(FILES include/pict_resize.h DESTINATION include)
 
+# ── Native resize verification ─────────────────────────────────────────────
+if(ZENPIX_BUILD_TESTS)
+  enable_testing()
+  add_executable(test_resize_simd
+    test/test_resize_simd.c
+    src/resize.c
+  )
+  target_include_directories(test_resize_simd PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+  )
+  target_compile_definitions(test_resize_simd PRIVATE PICT_RESIZE_TESTING=1)
+  if(ZENPIX_SIMD_DEFINITION)
+    target_compile_definitions(test_resize_simd PRIVATE ${ZENPIX_SIMD_DEFINITION})
+  endif()
+  if(NOT WIN32)
+    target_link_libraries(test_resize_simd PRIVATE m pthread)
+  endif()
+  add_test(NAME resize_simd_correctness COMMAND test_resize_simd)
+endif()
+
 # ── Summary ───────────────────────────────────────────────────────────────
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Platform:   ${CMAKE_SYSTEM_NAME}")
+message(STATUS "zenpix resize SIMD: ${ZENPIX_SIMD_BACKEND}")
 if(NOT WIN32)
   message(STATUS "libavif:  ${LIBAVIF_VERSION}")
   message(STATUS "libwebp:  ${LIBWEBP_VERSION}")
