@@ -8,7 +8,6 @@
 
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import { cpus, platform, release, arch } from "os";
-import { readFileSync } from "fs";
 import { join } from "path";
 import sharp from "sharp";
 
@@ -59,6 +58,21 @@ function fillRaw(w: number, h: number, ch: number): Uint8Array {
     state ^= state >>> 17;
     state ^= state << 5;
     pixels[i] = state >>> 24;
+  }
+  return pixels;
+}
+
+function fillPipelineFixture(w: number, h: number): Uint8Array {
+  const pixels = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const offset = (y * w + x) * 4;
+      const checker = ((x >>> 5) ^ (y >>> 5)) & 1;
+      pixels[offset] = Math.round((x * 255) / (w - 1));
+      pixels[offset + 1] = Math.round((y * 255) / (h - 1));
+      pixels[offset + 2] = checker ? 192 : 64;
+      pixels[offset + 3] = 255;
+    }
   }
   return pixels;
 }
@@ -123,10 +137,10 @@ function pairedBenchmark(
   console.log(`${label}\n  scalar p25/med/p75 ${fmt(scalarTimes)}\n  SIMD   p25/med/p75 ${fmt(simdTimes)}\n  median speedup ${speedup.toFixed(3)}x`);
 }
 
-const fixturePath = join(import.meta.dir, "../test/fixtures/bench_landscape_light.png");
-const rgbaPng = new Uint8Array(await sharp(readFileSync(fixturePath))
-  .resize(1920, 1080, { fit: "cover" })
-  .ensureAlpha()
+const fixture = fillPipelineFixture(1920, 1080);
+const rgbaPng = new Uint8Array(await sharp(fixture, {
+  raw: { width: 1920, height: 1080, channels: 4 },
+})
   .png()
   .toBuffer());
 const rgba = fillRaw(1920, 1080, 4);
@@ -137,7 +151,7 @@ console.log(`OS=${platform()} ${release()} arch=${arch()} CPU=${cpus()[0]?.model
 console.log(`SIMD=${simdPath}`);
 console.log(`scalar=${scalarPath}`);
 console.log(`compiler/build: CMake Release, -O2, portable architecture baseline; SIMD backend selected by architecture`);
-console.log(`fixture=${fixturePath} prepared as RGBA PNG 1920x1080; warmup=${warmup}; measured pairs=${iterations}\n`);
+console.log(`fixture=deterministic gradient/checker RGBA PNG 1920x1080; warmup=${warmup}; measured pairs=${iterations}\n`);
 
 try {
   for (const threads of [1, Math.min(4, cpus().length)]) {
