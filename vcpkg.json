@@ -5,8 +5,7 @@
     {
       "name": "libavif",
       "features": [
-        "aom",
-        "dav1d"
+        "aom"
       ]
     },
     "libwebp",

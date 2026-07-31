@@ -16,7 +16,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar nasm
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
@@ -78,7 +78,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar nasm
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
