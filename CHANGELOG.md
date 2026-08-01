@@ -2,22 +2,22 @@
 
 このファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の体裁に近づけ、利用者向けの差分を記録する。
 
-## [1.0.3] - 未公開
+## [1.0.3 / zenpix-wasm 1.1.1] - 未公開
 
 ### ネイティブresize SIMD
 
 - scalarの2-pass Lanczos-3を正解基準として残し、RGBAの水平・垂直passにarm64 NEONとx86_64 SSE2の経路を追加した。
 - 1 / 2 / 3 channel、未対応CPU、`ZENPIX_ENABLE_SIMD=OFF`はscalarへfallbackする。公開API / ABIは変更しない。
 - scalar対SIMDのC単体・共有ライブラリFFI・既存RGB / 操作テストを追加した。macOS arm64ではNEON、macOS x64ではRosetta上のSSE2について画素一致を確認した。
-- 先行するGitHub Actions run `30674867350`でmacOS arm64 / x64、Linux arm64 / x64、Windows x64のSIMD・強制scalar build/test、共有ライブラリFFI比較、AVIF roundtrip、バイナリartifact生成が通過した。ただし、このrunは1.0.3の7 tarballと配布依存を検証していない。
-- Apple M4 Proでのローカル測定では、対象RGBA resizeでscalar比約1.08〜1.15倍、decode→resize→AVIF全体で約1.07〜1.13倍だった。RGB fallbackは改善せず、この範囲を一般性能の主張には使用しない。
+- 5 native環境のrelease-candidate workflowでSIMD・強制scalar build/test、共有ライブラリFFI比較、AVIF roundtrip、runtime依存検査、packed Node.js / Bun / Deno / CLI smokeを実行する。scalar対SIMDの全画素比較は最大差0だった。
+- GitHub Actionsの決定的RGBA fixtureでは、Apple M1 runnerでraw resizeが1.086〜1.256倍、decode→resize→AVIF全体が1.044〜1.173倍、Intel runnerでそれぞれ1.215〜1.297倍、1.200〜1.326倍だった。RGB fallbackは改善せず、この範囲を一般性能の主張には使用しない。
 
 ### 配布再現性
 
 - `vcpkg.json`へbaselineを固定し、5つのnative jobが直前にbuildしたバイナリを対応するoptional packageへ入れてpackするようにした。Gitで無視された既存バイナリはpack入力に使わない。
-- macOS候補はcodec依存を静的リンクし、deployment targetを12.0に固定する。ローカルmacOS arm64では外部codec dylib依存がないこと、`minos 12.0`、Node.js / Bun / Deno API、CLIを確認した。macOS x64を含む5環境は新しいCI実走前のため未確認。
-- native tarballのバイナリSHA、runtime依存、Node.js / Bun / Deno API、CLIを各環境で検査し、最後にroot・5 native・WASMの計7 tarballをversion・必須ファイル・license・SHA256で集約検査するCI定義を追加した。
-- `zenpix-wasm`はclean buildでbaseline / SIMDの4成果物がそろわない限りpackを失敗させ、packed tarballをChromiumでencodeするCI定義を追加した。ローカルではEmscripten 5.0.7のclean build、Nodeテスト、pack、Chromiumで両variantのAVIF encodeを確認した。新しいCI実走、registry再取得、npm公開、本番利用は未確認。
+- macOS候補はcodec依存を静的リンクし、deployment targetを12.0に固定する。release-candidate workflowはmacOS arm64 / x64で外部codec dylib依存がないことと`minos 12.0`を検査し、Linuxではglibc baseline、Windowsではruntime importを検査する。
+- native tarballのバイナリSHA、runtime依存、Node.js / Bun / Deno API、CLIを各環境で検査し、最後にroot・5 native・WASMの計7 tarballをversion・必須ファイル・license・SHA256で集約検査する。
+- `zenpix-wasm`はclean buildでbaseline / SIMDの4成果物がそろわない限りpackを失敗させ、packed tarballをChromiumでencodeする。既に公開済みの1.1.0と区別して、ライセンス通知と配布検証を修正した候補を1.1.1とする。registry再取得、npm公開、本番利用は未確認。
 
 ## [1.0.2 / zenpix-wasm 1.1.0] - 2026-07-22
 

@@ -4,7 +4,7 @@
 
 `npm publish`、website deploy、tag作成、GitHub Release作成は外部状態を変更します。**それぞれ明示的な許可を得るまで実行しません。** GitHubへのpushだけでは、既存のnpm tarballや公開済みwebsiteは更新されません。
 
-以下では例としてネイティブ版を`1.0.3`、WASM版を`1.1.0`とします。次回以降は対象versionへ読み替え、固定されたversionを使わないでください。
+以下では例としてネイティブ版を`1.0.3`、WASM版を`1.1.1`とします。次回以降は対象versionへ読み替え、固定されたversionを使わないでください。
 
 ## 1. 公開差分とversionを確定する
 
@@ -119,7 +119,7 @@ READMEとwebsiteの日英説明、WASM import path、対応範囲、性能に関
 - [ ] GitHub Actions `Build & Test`が対象commitで成功している
 - [ ] 5環境でSIMD有効版と強制scalar版がbuildされ、RGBAの水平・垂直SIMD到達テストとFFI差分テストが成功している
 - [ ] macOS arm64 / Linux arm64はNEON、macOS x64 / Linux x64 / Windows x64はSSE2の対象buildであることをworkflow logと成果物で確認している
-- [ ] npm 1.0.2はscalarであること、次versionのSIMD配布確認前にcareer・Zenn・portfolioへ「公開済み」と書かないことを確認している
+- [ ] npm 1.0.2はscalarであること、次versionのSIMD配布確認前に公開説明へ「公開済み」と書いていないことを確認している
 - [ ] 各native jobが直前のbuild出力をpackし、packed binaryとのSHA256一致を確認している
 - [ ] `zenpix-release-candidate` artifactに全7 tarballと`SHA256SUMS`があり、集約検査が成功している
 - [ ] `npm whoami`とpublish権限を確認した
@@ -145,7 +145,7 @@ publish後は作業treeのtarballを信用せず、registryから各versionを�
 
 ```bash
 npm pack zenpix@1.0.3
-npm pack zenpix-wasm@1.1.0
+npm pack zenpix-wasm@1.1.1
 npm pack zenpix-darwin-arm64@1.0.3
 ```
 

@@ -10,9 +10,9 @@
 | Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
 | Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」はpackageとCI定義の対象を示し、未実走のrelease candidateを検証済みとする印ではありません。
+各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」はpackageとrelease-candidate workflowの対象を示します。公開済みversionと候補の状態は次で区別します。
 
-公開済み1.0.2のoptional packageはscalarです。未公開のnative 1.0.3 sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選び、その他はscalarへfallbackします。run `30674867350`は5環境のsource build・testを通過しましたが、以前のlocal tarballはignoredの1.0.2 binaryを再利用していたため配布検証から除外します。新workflowのpacked artifact実走、npm registry上の1.0.3、本番利用は未確認です。
+公開済み1.0.2のoptional packageはscalarです。native 1.0.3候補では、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選び、その他はscalarへfallbackします。5環境のworkflowはSIMD版と強制scalar版をbuild・testし、直前のbuild出力をpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査します。npm registry上の1.0.3と本番利用は未確認です。
 
 公開済みmacOS 1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetにします。Linux候補はglibc 2.34以上を対象とし、CIで`GLIBC_2.34`より新しいsymbol参照を拒否します。Windows x64はVC++ Redistributableが必要になる場合があります。
 

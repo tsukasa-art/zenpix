@@ -40,24 +40,24 @@ zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをl
 
 2026-07-31の明色風景fixtureでは、同じq60でzenpixのRGB PSNRが0.624 dB高い一方、出力も37.8%大きくなりました。ほぼ同じサイズの2組ではSharpのRGB PSNRが約0.5 dB高く、同一qualityで細部が残ることを一般的な圧縮効率の優位性とは扱えません。
 
-## 未公開source branchのscalar対SIMD CI測定
+## native 1.0.3候補のscalar対SIMD CI測定
 
-GitHub Actions run `30674226376`で、同じsourceからSIMD版と強制scalar版をportable CMake Release baselineでbuildしました。`bench/resize-simd.ts`が決定的なgradient/checker RGBA PNG（1920×1080）を生成し、各trialはwarm-up 3回、scalar / SIMDを交互に15組、全体を3回実行しています。
+GitHub Actions run `30687176774`（head `2e48698d`）で、同じsourceからSIMD版と強制scalar版をportable CMake Release baselineでbuildしました。`bench/resize-simd.ts`が決定的なgradient/checker RGBA PNG（1920×1080）を生成し、各trialはwarm-up 3回、scalar / SIMDを交互に15組、全体を3回実行しています。
 
 | architecture / backend | 対象 | threads | median speedup範囲 |
 |---|---|---:|---:|
-| macOS arm64 / NEON | raw RGBA resize | 1 | 1.117〜1.146× |
-| macOS arm64 / NEON | raw RGBA resize | 3 | 1.082〜1.098× |
-| macOS arm64 / NEON | PNG → resize → AVIF | 1 | 1.113〜1.120× |
-| macOS arm64 / NEON | PNG → resize → AVIF | 3 | 1.074〜1.082× |
-| macOS arm64 / scalar fallback | raw RGB resize | 3 | 0.996〜1.002× |
-| macOS x64 / SSE2 | raw RGBA resize | 1 | 1.133〜1.148× |
-| macOS x64 / SSE2 | raw RGBA resize | 4 | 1.095〜1.131× |
-| macOS x64 / SSE2 | PNG → resize → AVIF | 1 | 1.091〜1.122× |
-| macOS x64 / SSE2 | PNG → resize → AVIF | 4 | 1.080〜1.104× |
-| macOS x64 / scalar fallback | raw RGB resize | 4 | 0.964〜0.998× |
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize | 1 | 1.103〜1.256× |
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize | 4 | 1.086〜1.160× |
+| macOS arm64 / NEON（Apple M1 Virtual） | PNG → resize → AVIF | 1 | 1.044〜1.173× |
+| macOS arm64 / NEON（Apple M1 Virtual） | PNG → resize → AVIF | 4 | 1.045〜1.127× |
+| macOS arm64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.079× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize | 1 | 1.232〜1.297× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize | 4 | 1.215〜1.284× |
+| macOS x64 / SSE2（Intel i7-8700B） | PNG → resize → AVIF | 1 | 1.200〜1.326× |
+| macOS x64 / SSE2（Intel i7-8700B） | PNG → resize → AVIF | 4 | 1.227〜1.249× |
+| macOS x64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.046× |
 
-RGBAはNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runでは5対象環境の正確性・FFI・AVIF testも通過しています。性能値はこのfixtureとrunnerに限り、一般的な高速化主張には使用しません。
+RGBAはNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runでは5 native環境の正確性・FFI・AVIF test、runtime依存検査、packed Node.js / Bun / Deno / CLI smokeと、全7 tarballの集約検査も通過しています。性能値はこのfixtureとrunnerに限り、一般的な高速化主張には使用しません。
 
 ## 2 vCPU・2 GB制限下の補助測定
 

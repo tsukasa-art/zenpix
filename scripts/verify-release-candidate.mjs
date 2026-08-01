@@ -20,7 +20,7 @@ const expected = new Map([
   ["zenpix-linux-arm64", { version: "1.0.3", binary: "libpict.so" }],
   ["zenpix-linux-x64", { version: "1.0.3", binary: "libpict.so" }],
   ["zenpix-win32-x64", { version: "1.0.3", binary: "libpict.dll" }],
-  ["zenpix-wasm", { version: "1.1.0", binary: null }],
+  ["zenpix-wasm", { version: "1.1.1", binary: null }],
 ]);
 
 const rootOptionalDependencies = Object.fromEntries(

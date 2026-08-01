@@ -40,24 +40,24 @@ The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alph
 
 On the bright-landscape fixture measured on 2026-07-31, zenpix at q60 had 0.624 dB higher RGB PSNR but also produced a 37.8% larger file. In two near-size-matched pairs, Sharp had about 0.5 dB higher RGB PSNR. More retained detail at the same numeric quality is therefore not treated as evidence of generally better compression efficiency.
 
-## Unpublished source branch: scalar vs SIMD in CI
+## Native 1.0.3 candidate: scalar vs SIMD in CI
 
-GitHub Actions run `30674226376` built the SIMD and forced-scalar libraries from the same source with a portable CMake Release baseline. `bench/resize-simd.ts` generates a deterministic 1920×1080 gradient/checker RGBA PNG. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs, and the complete measurement was repeated three times.
+GitHub Actions run `30687176774` at head `2e48698d` built the SIMD and forced-scalar libraries from the same source with a portable CMake Release baseline. `bench/resize-simd.ts` generates a deterministic 1920×1080 gradient/checker RGBA PNG. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs, and the complete measurement was repeated three times.
 
 | Architecture / backend | Workload | Threads | Median speedup range |
 |---|---|---:|---:|
-| macOS arm64 / NEON | Raw RGBA resize | 1 | 1.117–1.146× |
-| macOS arm64 / NEON | Raw RGBA resize | 3 | 1.082–1.098× |
-| macOS arm64 / NEON | PNG → resize → AVIF | 1 | 1.113–1.120× |
-| macOS arm64 / NEON | PNG → resize → AVIF | 3 | 1.074–1.082× |
-| macOS arm64 / scalar fallback | Raw RGB resize | 3 | 0.996–1.002× |
-| macOS x64 / SSE2 | Raw RGBA resize | 1 | 1.133–1.148× |
-| macOS x64 / SSE2 | Raw RGBA resize | 4 | 1.095–1.131× |
-| macOS x64 / SSE2 | PNG → resize → AVIF | 1 | 1.091–1.122× |
-| macOS x64 / SSE2 | PNG → resize → AVIF | 4 | 1.080–1.104× |
-| macOS x64 / scalar fallback | Raw RGB resize | 4 | 0.964–0.998× |
+| macOS arm64 / NEON (Apple M1 Virtual) | Raw RGBA resize | 1 | 1.103–1.256× |
+| macOS arm64 / NEON (Apple M1 Virtual) | Raw RGBA resize | 4 | 1.086–1.160× |
+| macOS arm64 / NEON (Apple M1 Virtual) | PNG → resize → AVIF | 1 | 1.044–1.173× |
+| macOS arm64 / NEON (Apple M1 Virtual) | PNG → resize → AVIF | 4 | 1.045–1.127× |
+| macOS arm64 / scalar fallback | Raw RGB resize | 1 / 4 | 0.981–1.079× |
+| macOS x64 / SSE2 (Intel i7-8700B) | Raw RGBA resize | 1 | 1.232–1.297× |
+| macOS x64 / SSE2 (Intel i7-8700B) | Raw RGBA resize | 4 | 1.215–1.284× |
+| macOS x64 / SSE2 (Intel i7-8700B) | PNG → resize → AVIF | 1 | 1.200–1.326× |
+| macOS x64 / SSE2 (Intel i7-8700B) | PNG → resize → AVIF | 4 | 1.227–1.249× |
+| macOS x64 / scalar fallback | Raw RGB resize | 1 / 4 | 0.981–1.046× |
 
-All three trials improved for RGBA on both NEON and SSE2; RGB is outside the SIMD path and did not improve. The same run passed correctness, FFI, and AVIF tests on macOS arm64/x64, Linux arm64/x64, and Windows x64. These performance numbers still apply only to this fixture and these runners.
+All three trials improved for RGBA on both NEON and SSE2; RGB is outside the SIMD path and did not improve. The same run passed correctness, FFI, AVIF, runtime-dependency, and packed Node.js, Bun, Deno, and CLI checks on all five native targets, plus aggregate verification of all seven tarballs. These performance numbers still apply only to this fixture and these runners.
 
 ## Supplementary 2-vCPU / 2-GB measurement
 

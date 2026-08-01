@@ -127,7 +127,7 @@ The immediate motivation was a Sharp route on the old 2-vCPU, 2-GB VPS website t
 
 The native Lanczos-3 implementation keeps a scalar two-pass separable filter as its reference path. On supported CPUs, RGBA horizontal and vertical passes use arm64 NEON or x86_64 SSE2. One-, two-, and three-channel images and unsupported CPUs fall back to scalar. `ZENPIX_ENABLE_SIMD=OFF` builds the forced-scalar path from the same source. The vertical pass and AVIF encoding accept a per-call thread count.
 
-This SIMD path remains an unpublished source-branch change. GitHub Actions run `30674867350` passed source builds, native tests, shared-library FFI checks, and AVIF roundtrip on macOS arm64/x64, Linux arm64/x64, and Windows x64. The earlier local pack reused ignored 1.0.2 binaries, so it did not verify a distributable 1.0.3 SIMD build. The workflow is being changed so each job packs the binary it just built, verifies the SHA-256 identity, and runs packed Node.js, Bun, Deno, and CLI smoke tests. Published zenpix 1.0.2 remains scalar; a new 1.0.3 CI run, registry artifacts, and production use remain unverified.
+This SIMD path is the native 1.0.3 release candidate. On all five native targets, GitHub Actions builds the SIMD and forced-scalar variants from the same source and runs C tests, shared-library FFI comparisons, AVIF roundtrip tests, and runtime-dependency checks. Each job packs the binary it just built, verifies its SHA-256 identity, and runs packed Node.js, Bun, Deno, and CLI smoke tests. The aggregate job verifies versions, required files, and licenses across the root, five native optional packages, and WASM tarballs. Published native 1.0.2 remains scalar; registry-published 1.0.3 packages and production use remain unverified.
 
 ## Platform support
 
@@ -137,9 +137,9 @@ This SIMD path remains an unpublished source-branch change. GitHub Actions run `
 | Bun | Target | Target | Target | Target | Target |
 | Deno 2.x | Target | Target | Target | Target | Target |
 
-“Target” means that a package and CI definition exist; it does not mark an unrun release candidate as verified. The 1.0.3 candidate targets macOS 12 or later, Linux with glibc 2.34 or later, and Windows x64; Linux CI rejects references to symbols newer than `GLIBC_2.34`. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
+“Target” means that a package and release-candidate workflow exist. The 1.0.3 candidate targets macOS 12 or later, Linux with glibc 2.34 or later, and Windows x64; Linux CI rejects references to symbols newer than `GLIBC_2.34`. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
 
-Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links the codec dependencies and builds with a macOS 12.0 deployment target. This is not considered fixed until the new five-environment CI run succeeds.
+Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links the codec dependencies and builds with a macOS 12.0 deployment target. Candidate CI verification is complete, but the published-package defect is not considered fixed until 1.0.3 is published and retrieved again from the registry.
 
 HEIC / HEIF has an additional runtime dependency:
 

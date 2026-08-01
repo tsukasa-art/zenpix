@@ -75,24 +75,24 @@ zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをl
 
 2026-07-31に明色風景fixtureを960px幅へリサイズして比較したところ、同じ`quality=60`ではzenpixの方がRGB PSNRは0.624 dB高い一方、ファイルサイズも37.8%大きくなりました。ほぼ同じサイズの組では、Sharp q57対zenpix q45でSharpが0.511 dB、Sharp q72対zenpix q60でSharpが0.499 dB高い結果でした。したがって、このfixtureの同一quality比較でzenpixが細部を多く残したことは、一般的な圧縮効率の優位性を意味しません。
 
-## 未公開source branchのscalar対SIMD CI測定
+## native 1.0.3候補のscalar対SIMD CI測定
 
-GitHub Actions run `30674226376`で、同じsourceからSIMD版と強制scalar版をCMake Releaseのportable baselineでbuildしました。`bench/resize-simd.ts`が生成する決定的なgradient/checker RGBA PNG（1920×1080）を使い、各trialはwarm-up 3回、scalar / SIMDを交互に15組、中央値を使用し、全体を3回実行しました。
+GitHub Actions run `30687176774`（head `2e48698d`）で、同じsourceからSIMD版と強制scalar版をCMake Releaseのportable baselineでbuildしました。`bench/resize-simd.ts`が生成する決定的なgradient/checker RGBA PNG（1920×1080）を使い、各trialはwarm-up 3回、scalar / SIMDを交互に15組、中央値を使用し、全体を3回実行しました。
 
 | architecture / backend | 対象 | threads | 3回のmedian speedup範囲 |
 |---|---|---:|---:|
-| macOS arm64 / NEON | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.117〜1.146× |
-| macOS arm64 / NEON | raw RGBA resize 1920×1080 → 960×540 | 3 | 1.082〜1.098× |
-| macOS arm64 / NEON | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.113〜1.120× |
-| macOS arm64 / NEON | RGBA PNG decode → resize → AVIF（q60 / speed10） | 3 | 1.074〜1.082× |
-| macOS arm64 / scalar fallback | raw RGB resize | 3 | 0.996〜1.002× |
-| macOS x64 / SSE2 | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.133〜1.148× |
-| macOS x64 / SSE2 | raw RGBA resize 1920×1080 → 960×540 | 4 | 1.095〜1.131× |
-| macOS x64 / SSE2 | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.091〜1.122× |
-| macOS x64 / SSE2 | RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.080〜1.104× |
-| macOS x64 / scalar fallback | raw RGB resize | 4 | 0.964〜0.998× |
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.103〜1.256× |
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize 1920×1080 → 960×540 | 4 | 1.086〜1.160× |
+| macOS arm64 / NEON（Apple M1 Virtual） | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.044〜1.173× |
+| macOS arm64 / NEON（Apple M1 Virtual） | RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.045〜1.127× |
+| macOS arm64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.079× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.232〜1.297× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize 1920×1080 → 960×540 | 4 | 1.215〜1.284× |
+| macOS x64 / SSE2（Intel i7-8700B） | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.200〜1.326× |
+| macOS x64 / SSE2（Intel i7-8700B） | RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.227〜1.249× |
+| macOS x64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.046× |
 
-RGBAではNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runではmacOS arm64 / x64、Linux arm64 / x64、Windows x64の正確性・FFI・AVIF testも通過しています。ただし性能値はこのfixtureとrunnerに限り、zenpix全体が常に高速化するという主張には使用しません。
+RGBAではNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runでは5 native環境の正確性・FFI・AVIF test、runtime依存検査、packed Node.js / Bun / Deno / CLI smokeと、全7 tarballの集約検査も通過しています。ただし性能値はこのfixtureとrunnerに限り、zenpix全体が常に高速化するという主張には使用しません。
 
 ## 2 vCPU・2 GB制限下の補助測定
 

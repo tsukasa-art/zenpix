@@ -1,6 +1,6 @@
 {
   "name": "zenpix-wasm",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Browser-side AVIF encoding from raw RGB/RGBA pixels using libavif + libaom WebAssembly",
   "type": "module",
   "exports": {

@@ -443,11 +443,11 @@ jobs:
       - name: Install Chromium
         run: bunx playwright install --with-deps chromium
       - name: Test — packed baseline and SIMD in Chromium
-        run: node scripts/test-packed-wasm-browser.mjs packed/zenpix-wasm-1.1.0.tgz
+        run: node scripts/test-packed-wasm-browser.mjs packed/zenpix-wasm-1.1.1.tgz
       - uses: actions/upload-artifact@v4
         with:
-          name: zenpix-wasm-1.1.0
-          path: packed/zenpix-wasm-1.1.0.tgz
+          name: zenpix-wasm-1.1.1
+          path: packed/zenpix-wasm-1.1.1.tgz
 
   # ── JS wrapper build (type-check + dist) ──────────────────────────────────
   build-js:

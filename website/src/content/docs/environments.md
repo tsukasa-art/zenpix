@@ -13,9 +13,9 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 | Bun | Target | Target | Target | Target | Target |
 | Deno 2.x | Target | Target | Target | Target | Target |
 
-Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a package and CI definition exist; it does not mark an unrun release candidate as verified.
+Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a package and release-candidate workflow exist. Published and candidate states are distinguished below.
 
-Published 1.0.2 optional packages use the scalar resize path. In the unpublished native 1.0.3 source, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; all other cases fall back to scalar. Run `30674867350` passed source builds and tests on all five targets. The earlier local tarballs reused ignored 1.0.2 binaries and are excluded from distribution evidence. The new packed-artifact workflow, registry-published 1.0.3 packages, and production use remain unverified.
+Published 1.0.2 optional packages use the scalar resize path. In the native 1.0.3 candidate, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; all other cases fall back to scalar. All five target jobs build and test the SIMD and forced-scalar paths, then pack the freshly-built binary and verify its SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Registry-published 1.0.3 packages and production use remain unverified.
 
 Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links those codecs and targets macOS 12.0. The Linux candidate requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
 

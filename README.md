@@ -127,7 +127,7 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 
 ネイティブの Lanczos-3 はscalarの2-pass separable filterを正解基準とし、対応CPUではRGBAの水平・垂直passにarm64 NEONまたはx86_64 SSE2を使用します。1 / 2 / 3 channelと未対応CPUはscalarへfallbackします。`ZENPIX_ENABLE_SIMD=OFF`で同じsourceから強制scalar版をbuildできます。垂直passとAVIF encodeは呼び出しごとにスレッド数を指定できます。
 
-このSIMD経路は現在のsource branchにある未公開変更です。GitHub Actions run `30674867350`ではmacOS arm64 / x64、Linux arm64 / x64、Windows x64のsource build・native test・shared-library FFI・AVIF roundtripが通過しました。一方、以前のlocal packはignoredの1.0.2 binaryを再利用しており、1.0.3の配布検証にはなっていませんでした。現在のworkflowは各jobでbuildしたbinaryをそのままpackし、SHA一致、Node.js / Bun / Deno API、CLI実変換まで確認する構成へ修正中です。npmで公開済みのzenpix 1.0.2はscalarのままで、1.0.3の新しいCI実走、registry配布物、本番利用は未確認です。
+このSIMD経路はnative 1.0.3のrelease candidateです。GitHub Actionsの5 native環境ではSIMD版と強制scalar版を同じsourceからbuildし、C test、共有ライブラリFFI比較、AVIF roundtrip、runtime依存検査を実行します。各jobは直前にbuildしたbinaryをpackし、SHA256一致とNode.js / Bun / Deno API、CLI実変換を確認します。集約jobはroot、5 native optional packages、WASMの計7 tarballについてversion・必須ファイル・licenseを検査します。公開済みのnative 1.0.2はscalarのままで、npm registry上の1.0.3と本番利用は未確認です。
 
 ## 動作環境
 
@@ -137,9 +137,9 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 | Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
 | Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-表の「対象」はpackageとCI定義の対象を示し、未実走のrelease candidateを動作確認済みとする印ではありません。1.0.3候補はmacOS 12以上、glibc 2.34以上のLinux、Windows x64を対象とし、Linux CIは`GLIBC_2.34`より新しいsymbol参照を拒否します。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
+表の「対象」はpackageとrelease-candidate workflowの対象を示します。1.0.3候補はmacOS 12以上、glibc 2.34以上のLinux、Windows x64を対象とし、Linux CIは`GLIBC_2.34`より新しいsymbol参照を拒否します。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
 
-公開済みmacOS版1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の配布問題があります。1.0.3候補ではcodecを静的リンクし、macOS 12.0をdeployment targetとしてbuild・検査します。新しい5環境CIが完了するまでは修正済みとは扱いません。
+公開済みmacOS版1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の配布問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetとしてbuild・検査します。候補のCI検証は完了していますが、npmで1.0.3を公開してregistryから再取得するまでは、公開版の問題が修正済みとは扱いません。
 
 HEIC / HEIFだけは追加の実行時依存があります。
 
