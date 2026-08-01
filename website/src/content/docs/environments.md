@@ -13,11 +13,11 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 | Bun | Target | Target | Target | Target | Target |
 | Deno 2.x | Target | Target | Target | Target | Target |
 
-Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a package and release-candidate workflow exist. Published and candidate states are distinguished below.
+Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a published package and CI workflow exist.
 
-Published 1.0.2 optional packages use the scalar resize path. In the native 1.0.3 candidate, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; all other cases fall back to scalar. All five target jobs build and test the SIMD and forced-scalar paths, then pack the freshly-built binary and verify its SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Registry-published 1.0.3 packages and production use remain unverified.
+Published 1.0.3 optional packages select NEON for RGBA resize on arm64 and SSE2 on x86_64; all other cases fall back to scalar. All five target jobs built and tested the SIMD and forced-scalar paths, then packed their freshly-built binaries and verified SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Those same tarballs were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh registry install and CLI conversion on macOS arm64.
 
-Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links those codecs and targets macOS 12.0. The Linux candidate requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
+Published macOS 1.0.3 binaries statically link those codecs and target macOS 12.0. Linux 1.0.3 requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
 
 **Unsupported environments**:
 - Alpine Linux (musl): requires glibc

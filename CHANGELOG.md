@@ -2,7 +2,7 @@
 
 このファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の体裁に近づけ、利用者向けの差分を記録する。
 
-## [1.0.3 / zenpix-wasm 1.1.1] - 未公開
+## [1.0.3 / zenpix-wasm 1.1.1] - 2026-08-01
 
 ### ネイティブresize SIMD
 
@@ -15,9 +15,10 @@
 ### 配布再現性
 
 - `vcpkg.json`へbaselineを固定し、5つのnative jobが直前にbuildしたバイナリを対応するoptional packageへ入れてpackするようにした。Gitで無視された既存バイナリはpack入力に使わない。
-- macOS候補はcodec依存を静的リンクし、deployment targetを12.0に固定する。release-candidate workflowはmacOS arm64 / x64で外部codec dylib依存がないことと`minos 12.0`を検査し、Linuxではglibc baseline、Windowsではruntime importを検査する。
+- macOS成果物はcodec依存を静的リンクし、deployment targetを12.0に固定する。release-candidate workflowはmacOS arm64 / x64で外部codec dylib依存がないことと`minos 12.0`を検査し、Linuxではglibc baseline、Windowsではruntime importを検査する。
 - native tarballのバイナリSHA、runtime依存、Node.js / Bun / Deno API、CLIを各環境で検査し、最後にroot・5 native・WASMの計7 tarballをversion・必須ファイル・license・SHA256で集約検査する。
-- `zenpix-wasm`はclean buildでbaseline / SIMDの4成果物がそろわない限りpackを失敗させ、packed tarballをChromiumでencodeする。既に公開済みの1.1.0と区別して、ライセンス通知と配布検証を修正した候補を1.1.1とする。registry再取得、npm公開、本番利用は未確認。
+- `zenpix-wasm`はclean buildでbaseline / SIMDの4成果物がそろわない限りpackを失敗させ、packed tarballをChromiumでencodeする。ライセンス通知と配布検証を修正した1.1.1をnpmへ公開し、registryから再取得したtarballのSHA256一致とbaseline / SIMD browser smokeを確認した。
+- native 1.0.3のrootと5 optional packageをnpmへ公開した。全packageのregistry metadataとintegrityを確認し、macOS arm64ではregistryから新規installしたAPI / CLIによるAVIF実変換を確認した。他の4 native環境は同一tarballのCI実行を配布証拠とし、公開後の実機利用は未確認。
 
 ## [1.0.2 / zenpix-wasm 1.1.0] - 2026-07-22
 

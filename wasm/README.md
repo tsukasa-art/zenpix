@@ -21,7 +21,7 @@ libavif + libaomをEmscriptenでWebAssemblyへコンパイルした、ブラウ�
 npm install zenpix-wasm
 ```
 
-npm registry上の公開versionは`1.1.0`です。このリポジトリでは、配布検証とライセンス通知を修正した`1.1.1`候補を準備しています。registry上のversionはpublishするまで更新されません。
+npm registry上の公開versionは`1.1.1`です。CIで作成したtarballをnpmへ公開し、registryから再取得したtarballのSHA256一致とbaseline / SIMDのChromium encodeを確認しています。
 
 ## クイックスタート
 

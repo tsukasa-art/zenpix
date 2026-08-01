@@ -93,7 +93,7 @@ if (avif) writeFileSync("output.avif", avif);
 | 機能 | 内容 |
 |---|---|
 | デコード | JPEG / PNG / WebP / AVIF / GIF（先頭フレーム）/ HEIC·HEIF（macOS・Linux） |
-| リサイズ | scalar基準の2-pass Lanczos-3。1.0.3候補ではRGBAにNEON / SSE2、その他はscalar fallback。fitモード（stretch / contain / cover） |
+| リサイズ | scalar基準の2-pass Lanczos-3。1.0.3ではRGBAにNEON / SSE2、その他はscalar fallback。fitモード（stretch / contain / cover） |
 | エンコード | WebP / AVIF（threads 指定可）/ PNG |
 | CLI | `npx zenpix`（バッチ・stdin/stdout 対応） |
 | RGBA | 背景除去・角丸・白背景合成 |
@@ -105,7 +105,7 @@ if (avif) writeFileSync("output.avif", avif);
 
 処理時間はCPU、スレッド数、画像、解像度、codec設定によって変わり、Sharpより速い結果と遅い結果の両方があります。再配布できないfixtureで得た過去の数値は、その条件の記録であり一般性能の根拠にはしません。詳細は[ベンチマーク](./benchmarks.md)を参照してください。
 
-公開済みnpm 1.0.2はscalarです。native 1.0.3候補ではRGBA用NEON / SSE2を5環境でbuild・testし、各CI jobが直前にbuildしたbinaryをpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査します。集約jobはroot、5 native optional packages、WASMの計7 tarballを検査します。npm registry上のnative 1.0.3と本番利用は未確認です。
+公開済みnpm 1.0.3は、RGBA用NEON / SSE2を5環境でbuild・testし、各CI jobが直前にbuildしたbinaryをpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査したものです。集約検査を通過したroot、5 native optional packages、WASMの計7 tarballをnpmへ公開し、全packageのregistry metadataとintegrity、macOS arm64のregistry再installとCLI実変換を確認済みです。他の4 native環境での公開後実機利用は未確認です。
 
 ---
 

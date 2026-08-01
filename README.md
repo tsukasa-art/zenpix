@@ -127,7 +127,7 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 
 ネイティブの Lanczos-3 はscalarの2-pass separable filterを正解基準とし、対応CPUではRGBAの水平・垂直passにarm64 NEONまたはx86_64 SSE2を使用します。1 / 2 / 3 channelと未対応CPUはscalarへfallbackします。`ZENPIX_ENABLE_SIMD=OFF`で同じsourceから強制scalar版をbuildできます。垂直passとAVIF encodeは呼び出しごとにスレッド数を指定できます。
 
-このSIMD経路はnative 1.0.3のrelease candidateです。GitHub Actionsの5 native環境ではSIMD版と強制scalar版を同じsourceからbuildし、C test、共有ライブラリFFI比較、AVIF roundtrip、runtime依存検査を実行します。各jobは直前にbuildしたbinaryをpackし、SHA256一致とNode.js / Bun / Deno API、CLI実変換を確認します。集約jobはroot、5 native optional packages、WASMの計7 tarballについてversion・必須ファイル・licenseを検査します。公開済みのnative 1.0.2はscalarのままで、npm registry上の1.0.3と本番利用は未確認です。
+このSIMD経路はnative 1.0.3として公開済みです。GitHub Actionsの5 native環境ではSIMD版と強制scalar版を同じsourceからbuildし、C test、共有ライブラリFFI比較、AVIF roundtrip、runtime依存検査を実行しました。各jobは直前にbuildしたbinaryをpackし、SHA256一致とNode.js / Bun / Deno API、CLI実変換を確認しています。集約jobでroot、5 native optional packages、WASMの計7 tarballについてversion・必須ファイル・licenseを検査し、同じtarballをnpmへ公開しました。全packageのregistry metadataとintegrity、macOS arm64でのregistry再installとCLI実変換を確認済みです。他の4 native環境での公開後実機利用は未確認です。
 
 ## 動作環境
 
@@ -137,9 +137,9 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 | Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
 | Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-表の「対象」はpackageとrelease-candidate workflowの対象を示します。1.0.3候補はmacOS 12以上、glibc 2.34以上のLinux、Windows x64を対象とし、Linux CIは`GLIBC_2.34`より新しいsymbol参照を拒否します。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
+表の「対象」は公開packageとCI workflowの対象を示します。1.0.3はmacOS 12以上、glibc 2.34以上のLinux、Windows x64を対象とし、Linux CIは`GLIBC_2.34`より新しいsymbol参照を拒否します。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
 
-公開済みmacOS版1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の配布問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetとしてbuild・検査します。候補のCI検証は完了していますが、npmで1.0.3を公開してregistryから再取得するまでは、公開版の問題が修正済みとは扱いません。
+macOS版1.0.3はcodecを静的リンクし、macOS 12.0をdeployment targetとしてbuild・検査しています。npm registryから再取得したmacOS arm64 packageで外部codec dylib依存がないこと、`minos 12.0`、API / CLI実変換を確認済みです。
 
 HEIC / HEIFだけは追加の実行時依存があります。
 

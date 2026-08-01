@@ -127,7 +127,7 @@ The immediate motivation was a Sharp route on the old 2-vCPU, 2-GB VPS website t
 
 The native Lanczos-3 implementation keeps a scalar two-pass separable filter as its reference path. On supported CPUs, RGBA horizontal and vertical passes use arm64 NEON or x86_64 SSE2. One-, two-, and three-channel images and unsupported CPUs fall back to scalar. `ZENPIX_ENABLE_SIMD=OFF` builds the forced-scalar path from the same source. The vertical pass and AVIF encoding accept a per-call thread count.
 
-This SIMD path is the native 1.0.3 release candidate. On all five native targets, GitHub Actions builds the SIMD and forced-scalar variants from the same source and runs C tests, shared-library FFI comparisons, AVIF roundtrip tests, and runtime-dependency checks. Each job packs the binary it just built, verifies its SHA-256 identity, and runs packed Node.js, Bun, Deno, and CLI smoke tests. The aggregate job verifies versions, required files, and licenses across the root, five native optional packages, and WASM tarballs. Published native 1.0.2 remains scalar; registry-published 1.0.3 packages and production use remain unverified.
+This SIMD path is published in native 1.0.3. On all five native targets, GitHub Actions built the SIMD and forced-scalar variants from the same source and ran C tests, shared-library FFI comparisons, AVIF roundtrip tests, and runtime-dependency checks. Each job packed the binary it had just built, verified its SHA-256 identity, and ran packed Node.js, Bun, Deno, and CLI smoke tests. The aggregate job verified versions, required files, and licenses across the root, five native optional packages, and WASM tarballs, and those same tarballs were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh registry install and CLI conversion on macOS arm64. Post-publication execution on the other four native targets remains unverified.
 
 ## Platform support
 
@@ -137,9 +137,9 @@ This SIMD path is the native 1.0.3 release candidate. On all five native targets
 | Bun | Target | Target | Target | Target | Target |
 | Deno 2.x | Target | Target | Target | Target | Target |
 
-“Target” means that a package and release-candidate workflow exist. The 1.0.3 candidate targets macOS 12 or later, Linux with glibc 2.34 or later, and Windows x64; Linux CI rejects references to symbols newer than `GLIBC_2.34`. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
+“Target” means that a published package and CI workflow exist. Version 1.0.3 targets macOS 12 or later, Linux with glibc 2.34 or later, and Windows x64; Linux CI rejects references to symbols newer than `GLIBC_2.34`. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
 
-Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links the codec dependencies and builds with a macOS 12.0 deployment target. Candidate CI verification is complete, but the published-package defect is not considered fixed until 1.0.3 is published and retrieved again from the registry.
+Published macOS 1.0.3 binaries statically link the codec dependencies and use a macOS 12.0 deployment target. The registry-retrieved macOS arm64 package was verified for the absence of external codec dylib dependencies, `minos 12.0`, and working API / CLI conversion.
 
 HEIC / HEIF has an additional runtime dependency:
 
