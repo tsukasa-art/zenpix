@@ -106,4 +106,4 @@ if (result) writeFileSync("output.avif", result);
 
 再配布可能なfixtureがない数値は一般性能の根拠には使用しません。条件と制約は[ベンチマーク](/ja/benchmarks)を参照してください。
 
-公開済みnpm 1.0.2はscalarです。RGBA用NEON / SSE2は未公開の次期sourceにあり、GitHub Actions run `30674226376`で5環境のbuild・testとartifact生成は通過しました。npm packed artifact、npm配布物、本番利用は未確認です。
+公開済みnpm 1.0.2はscalarです。RGBA用NEON / SSE2は未公開のnative 1.0.3 sourceにあり、GitHub Actions run `30674867350`で5環境のbuild・testとartifact生成は通過しました。native 1.0.3とWASM 1.1.0の全7 tarball、macOS arm64 packed API / CLI、packed WASM browser smokeはlocalで確認済みです。npm registry上の1.0.3配布物と本番利用は未確認です。

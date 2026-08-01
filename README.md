@@ -127,7 +127,7 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 
 ネイティブの Lanczos-3 はscalarの2-pass separable filterを正解基準とし、対応CPUではRGBAの水平・垂直passにarm64 NEONまたはx86_64 SSE2を使用します。1 / 2 / 3 channelと未対応CPUはscalarへfallbackします。`ZENPIX_ENABLE_SIMD=OFF`で同じsourceから強制scalar版をbuildできます。垂直passとAVIF encodeは呼び出しごとにスレッド数を指定できます。
 
-このSIMD経路は現在のsource branchにある未公開変更です。GitHub Actions run `30674226376`ではmacOS arm64 / x64、Linux arm64 / x64、Windows x64のbuild・native test・shared-library FFI・AVIF roundtripが通過し、5 artifactのarchitectureも確認しました。npmで公開済みのzenpix 1.0.2はscalar実装のままで、npm packed artifact、npm配布物、本番利用はまだ確認していません。
+このSIMD経路は現在のsource branchにある未公開変更です。GitHub Actions run `30674867350`ではmacOS arm64 / x64、Linux arm64 / x64、Windows x64のbuild・native test・shared-library FFI・AVIF roundtripが通過し、5 artifactのarchitectureも確認しました。native 1.0.3のroot＋5 optional packageとzenpix-wasm 1.1.0の全7 tarballをlocalで作成し、macOS arm64のpacked API / CLIとpacked WASMのbaseline / SIMD browser smokeも通過しています。npmで公開済みのzenpix 1.0.2はscalar実装のままで、npm registry上の1.0.3配布物と本番利用はまだ確認していません。
 
 ## 動作環境
 

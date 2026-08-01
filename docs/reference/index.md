@@ -105,7 +105,7 @@ if (avif) writeFileSync("output.avif", avif);
 
 処理時間はCPU、スレッド数、画像、解像度、codec設定によって変わり、Sharpより速い結果と遅い結果の両方があります。再配布できないfixtureで得た過去の数値は、その条件の記録であり一般性能の根拠にはしません。詳細は[ベンチマーク](./benchmarks.md)を参照してください。
 
-公開済みnpm 1.0.2はscalarです。RGBA用NEON / SSE2は未公開の次期sourceにあり、GitHub Actions run `30674226376`で5環境のbuild・testとartifact生成は通過しました。npm packed artifact、npm配布物、本番利用は未確認です。
+公開済みnpm 1.0.2はscalarです。RGBA用NEON / SSE2は未公開のnative 1.0.3 sourceにあり、GitHub Actions run `30674867350`で5環境のbuild・testとartifact生成は通過しました。native 1.0.3とWASM 1.1.0の全7 tarball、macOS arm64 packed API / CLI、packed WASM browser smokeはlocalで確認済みです。npm registry上の1.0.3配布物と本番利用は未確認です。
 
 ---
 

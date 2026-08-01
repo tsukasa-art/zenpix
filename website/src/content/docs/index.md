@@ -106,4 +106,4 @@ Processing time varies with the CPU, thread count, image characteristics, resolu
 
 Numbers without redistributable fixtures are not treated as general performance evidence. See [Benchmarks](/benchmarks) for conditions and limitations.
 
-The published zenpix 1.0.2 package is scalar. The RGBA NEON / SSE2 implementation is an unpublished next-source change. GitHub Actions run `30674226376` passed on all five target environments; npm packed artifacts, published npm packages, and production use remain unverified.
+The published zenpix 1.0.2 package is scalar. The RGBA NEON / SSE2 implementation is in the unpublished native 1.0.3 source. GitHub Actions run `30674867350` passed on all five target environments. Local verification created all seven native 1.0.3 / WASM 1.1.0 tarballs and passed the packed macOS arm64 API / CLI and packed WASM browser smoke tests. Registry-published 1.0.3 packages and production use remain unverified.

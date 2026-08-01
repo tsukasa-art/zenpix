@@ -127,7 +127,7 @@ The immediate motivation was a Sharp route on the old 2-vCPU, 2-GB VPS website t
 
 The native Lanczos-3 implementation keeps a scalar two-pass separable filter as its reference path. On supported CPUs, RGBA horizontal and vertical passes use arm64 NEON or x86_64 SSE2. One-, two-, and three-channel images and unsupported CPUs fall back to scalar. `ZENPIX_ENABLE_SIMD=OFF` builds the forced-scalar path from the same source. The vertical pass and AVIF encoding accept a per-call thread count.
 
-This SIMD path remains an unpublished source-branch change. GitHub Actions run `30674226376` passed the build, native tests, shared-library FFI checks, and AVIF roundtrip on macOS arm64/x64, Linux arm64/x64, and Windows x64; the architecture of all five artifacts was also inspected. The published zenpix 1.0.2 package remains scalar, and npm packed artifacts, published npm packages, and production use remain unverified for this change.
+This SIMD path remains an unpublished source-branch change. GitHub Actions run `30674867350` passed the build, native tests, shared-library FFI checks, and AVIF roundtrip on macOS arm64/x64, Linux arm64/x64, and Windows x64; the architecture of all five artifacts was also inspected. Local release-candidate verification created all seven tarballs: the zenpix 1.0.3 root, five 1.0.3 optional packages, and zenpix-wasm 1.1.0. The packed macOS arm64 API / CLI and packed WASM baseline / SIMD browser smoke tests passed. The published zenpix 1.0.2 package remains scalar; registry-published 1.0.3 packages and production use remain unverified.
 
 ## Platform support
 

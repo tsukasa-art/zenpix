@@ -15,7 +15,7 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 
 Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). No build toolchain required.
 
-Published 1.0.2 optional packages use the scalar resize path. In the unpublished next source, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; other channel counts and unsupported CPUs fall back to scalar. GitHub Actions run `30674226376` passed the builds, tests, and artifact generation on all five target environments. npm packed artifacts, published npm packages, and production use remain unverified.
+Published 1.0.2 optional packages use the scalar resize path. In the unpublished native 1.0.3 source, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; other channel counts and unsupported CPUs fall back to scalar. GitHub Actions run `30674867350` passed the builds, tests, and artifact generation on all five target environments. Local verification created all seven native 1.0.3 / WASM 1.1.0 tarballs and passed the packed macOS arm64 API / CLI and packed WASM browser smoke tests. Registry-published 1.0.3 packages and production use remain unverified.
 
 **Unsupported environments**:
 - Alpine Linux (musl): requires glibc

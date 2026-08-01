@@ -12,7 +12,7 @@
 
 各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。ビルド環境は一切不要です。
 
-公開済み1.0.2のoptional packageはscalarです。未公開の次期sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選びます。その他のchannel / CPUはscalarへfallbackします。GitHub Actions run `30674226376`で5環境のbuild・testとartifact生成は通過しましたが、npm packed artifact、npm配布物、本番利用は未確認です。
+公開済み1.0.2のoptional packageはscalarです。未公開のnative 1.0.3 sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選びます。その他のchannel / CPUはscalarへfallbackします。GitHub Actions run `30674867350`で5環境のbuild・testとartifact生成が通過し、native 1.0.3とWASM 1.1.0の全7 tarball、macOS arm64 packed API / CLI、packed WASM browser smokeもlocalで確認しました。npm registry上の1.0.3配布物と本番利用は未確認です。
 
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応
