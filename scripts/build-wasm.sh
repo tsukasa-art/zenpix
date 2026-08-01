@@ -76,8 +76,10 @@ fi
 
 # Avoid `emcc --version | head` under pipefail: closing the pipe can SIGPIPE the
 # Python emcc process and fail the whole script before any log line (CI symptom).
-if ! _emcc_ver_out=$(emcc --version 2>&1); then
-    error "emcc --version failed (exit $?): $_emcc_ver_out"
+_emcc_ver_status=0
+_emcc_ver_out=$(emcc --version 2>&1) || _emcc_ver_status=$?
+if [[ $_emcc_ver_status -ne 0 ]]; then
+    error "emcc --version failed (exit $_emcc_ver_status): $_emcc_ver_out"
 fi
 EMCC_VERSION="${_emcc_ver_out%%$'\n'*}"
 info "Using: $EMCC_VERSION"
@@ -247,7 +249,7 @@ echo ""
 # Copy to website/public/wasm/ for the demo site
 # ---------------------------------------------------------------------------
 WEBSITE_WASM_DIR="$REPO/website/public/wasm"
-if [[ -d "$WEBSITE_WASM_DIR" ]]; then
+if [[ "${ZENPIX_COPY_WEBSITE:-1}" == "1" && -d "$WEBSITE_WASM_DIR" ]]; then
     cp "$BROWSER_OUT" "$WEBSITE_WASM_DIR/"
     cp "${BROWSER_OUT%.js}.wasm" "$WEBSITE_WASM_DIR/"
     info "Copied to $WEBSITE_WASM_DIR"

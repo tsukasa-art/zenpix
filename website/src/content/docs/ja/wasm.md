@@ -163,11 +163,13 @@ async function createAvifEncoder(
 
 ## バンドルサイズ
 
+次はchecked-in demo artifactのサイズです。2026-08-01にEmscripten 5.0.7のlocal clean buildで再現しました。compilerが変わると厳密なサイズも変わります。
+
 | ファイル | raw | gzip |
 |------|-----|------|
-| `avif.wasm`（baseline） | 3.4 MB | **1.1 MB** |
-| `avif.simd.wasm` | 3.4 MB | **1.1 MB** |
-| `avif.js` | 60 KB | — |
+| `avif.wasm`（baseline） | 3.35 MiB | 1.06 MiB |
+| `avif.simd.wasm` | 5.63 MiB | 1.25 MiB |
+| `avif.js` | 60.8 KiB | — |
 
 ---
 

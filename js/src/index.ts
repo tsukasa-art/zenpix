@@ -6,7 +6,7 @@
  *   decodeHeic() — HEIC / HEIF → raw pixels（macOS / Linux のみ）
  *   resize()     — Lanczos-3 high-quality resize (stretch / contain / cover)
  *   encodeWebP() — WebP encode (lossy / lossless)
- *   encodeAvif() — AVIF encode (requires libavif on the system)
+ *   encodeAvif() — AVIF encode
  *   convert()    — one-shot decode → resize → encode pipeline
  *
  * Memory model:
@@ -14,8 +14,8 @@
  *   The native C allocations are freed before returning.
  *
  * AVIF note:
- *   libavif and libaom are statically linked in the distributed npm packages.
- *   No system-level installation is required when using npm install zenpix.
+ *   The 1.0.3 native package candidate statically links its AVIF codec stack.
+ *   HEIC decode remains optional and loads libheif from the user's system.
  *   encodeAvif() returns null if the build was compiled without AVIF support,
  *   or if quality/speed options are out of range.
  */
@@ -92,8 +92,8 @@ const _encode_webp_v2 = _lib.func(
   "uint8 *pict_encode_webp_v2(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, float quality, bool lossless, uint8 *icc, uint64 icc_len, uint64 *out_len)"
 );
 
-const _encode_avif = _lib.func(
-  "uint8 *pict_encode_avif(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, uint8 quality, uint8 speed, uint8 threads, uint64 *out_len)"
+const _encode_avif_v2 = _lib.func(
+  "uint8 *pict_encode_avif_v2(const uint8 *pixels, uint32 width, uint32 height, uint8 channels, uint8 quality, uint8 speed, uint8 threads, uint8 *icc, uint64 icc_len, uint64 *out_len)"
 );
 
 const _encode_png = _lib.func(
@@ -417,8 +417,8 @@ export function encodeWebP(image: ImageBuffer, options: WebPOptions = {}): Buffe
 /**
  * Encode pixel data as AVIF.
  *
- * libavif and libaom are statically linked in the distributed npm packages.
- * No system-level installation is required.
+ * The 1.0.3 native package candidate statically links its AVIF codec stack.
+ * Embeds image.icc when present; otherwise signals sRGB color characteristics.
  *
  * Returns null if:
  *   - This build was compiled without AVIF support
@@ -433,11 +433,15 @@ export function encodeAvif(image: ImageBuffer, options: AvifOptions = {}): Buffe
   if (!Number.isInteger(speed)   || speed   < 0 || speed   > 10)  return null;
   if (!Number.isInteger(threads) || threads < 1)                   return null;
 
+  const icc = image.icc;
+  const iccLen = icc !== undefined && icc.byteLength > 0 ? BigInt(icc.byteLength) : 0n;
   const outLen = new BigUint64Array(1);
-  const ptr = _encode_avif(
+  const ptr = _encode_avif_v2(
     image.data,
     image.width, image.height, image.channels,
     quality, speed, threads,
+    icc !== undefined && icc.byteLength > 0 ? icc : null,
+    iccLen,
     outLen,
   );
   if (ptr === null) return null;

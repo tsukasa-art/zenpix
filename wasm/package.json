@@ -1,6 +1,6 @@
 {
   "name": "zenpix-wasm",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Browser-side AVIF encoding from raw RGB/RGBA pixels using libavif + libaom WebAssembly",
   "type": "module",
   "exports": {
@@ -42,7 +42,7 @@
     "build:simd": "bash ../scripts/build-wasm.sh --simd",
     "build:all": "bash ../scripts/build-wasm.sh && bash ../scripts/build-wasm.sh --simd && npm run build:wrapper",
     "build:wrapper": "esbuild js/index.ts --bundle=false --platform=browser --format=esm --outfile=js/index.js",
-    "prepack": "npm run build:wrapper",
+    "prepack": "npm run build:wrapper && node ../scripts/verify-wasm-dist.mjs",
     "test": "node test.node.mjs"
   },
   "keywords": ["avif", "wasm", "webassembly", "image", "encoder", "browser", "cloudflare-pages"],

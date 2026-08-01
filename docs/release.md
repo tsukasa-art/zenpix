@@ -4,7 +4,7 @@
 
 `npm publish`、website deploy、tag作成、GitHub Release作成は外部状態を変更します。**それぞれ明示的な許可を得るまで実行しません。** GitHubへのpushだけでは、既存のnpm tarballや公開済みwebsiteは更新されません。
 
-以下では例としてネイティブ版を`1.0.2`、WASM版を`1.1.0`とします。次回以降は対象versionへ読み替え、固定された`v1.0.0`を使わないでください。
+以下では例としてネイティブ版を`1.0.3`、WASM版を`1.1.1`とします。次回以降は対象versionへ読み替え、固定されたversionを使わないでください。
 
 ## 1. 公開差分とversionを確定する
 
@@ -23,41 +23,72 @@ node -e 'const fs=require("node:fs"); const root=require("./package.json"); for 
 
 ## 2. buildとテスト
 
-ネイティブ依存を導入済みの環境で、CMake cacheを再生成し、既存成果物をcleanしてからbuildします。
+配布候補の正典は`.github/workflows/build.yml`です。5つのnative jobは固定したvcpkg manifestから依存をbuildし、SIMD有効版と強制scalar版を別々に検証します。macOS jobは専用static tripletとdeployment target 12.0を使います。
+
+次はmacOS arm64で同じ構成を再現する例です。ほかのOSではworkflowに記載したtripletと拡張子へ読み替えます。
 
 ```bash
-cmake --fresh -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --clean-first --parallel
+vcpkg install --triplet arm64-osx-zenpix \
+  --overlay-triplets=cmake/triplets \
+  --x-install-root="$PWD/vcpkg_installed"
+cmake --fresh -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+  -DZENPIX_ENABLE_SIMD=ON \
+  -DZENPIX_BUILD_TESTS=ON \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+  -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
+  -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+  -DVCPKG_INSTALLED_DIR="$PWD/vcpkg_installed"
+cmake --build build --parallel
+cmake --fresh -S . -B build-scalar -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+  -DZENPIX_ENABLE_SIMD=OFF \
+  -DZENPIX_BUILD_TESTS=ON \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+  -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
+  -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+  -DVCPKG_INSTALLED_DIR="$PWD/vcpkg_installed"
+cmake --build build-scalar --parallel
+ctest --test-dir build --output-on-failure
+ctest --test-dir build-scalar --output-on-failure
+ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" bun run test/resize_simd_precision.ts
 bun run test/lanczos_precision.ts
 bun run test/ops_precision.ts
 npm run build
-npx tsc --noEmit
+node scripts/verify-native-dependencies.mjs darwin build/libpict.dylib
 ```
 
-Linuxでは`.so`、Windowsでは`.dll`へ読み替えます。Node.js / Bun / Deno API、CLI変換も実画像で確認します。Denoの通常経路は`--allow-ffi --allow-read`だけ、`ZENPIX_LIB`上書き経路は`--allow-env=ZENPIX_LIB`も付けて確認します。
+Linuxでは`.so`、Windowsでは`.dll`へ読み替えます。依存検査はmacOSで外部codec dylibと`minos`、Linuxでcodecの`NEEDED`、Windowsでcodec DLL importをfail closedで検査します。
 
 WASM成果物は次を確認します。
 
 ```bash
-npm run build:wrapper --prefix wasm
-node wasm/test.node.mjs
+ZENPIX_COPY_WEBSITE=0 npm run build:all --prefix wasm
+npm test --prefix wasm
+node scripts/verify-wasm-dist.mjs
 ```
 
-## 3. 全7 packageをpackする
+## 3. CIで全7 packageを作り直す
 
-rootの`npm pack`は`prepack`からTypeScriptのclean buildを実行します。`prepublishOnly`だけには依存しません。
+無視された`npm/zenpix-*`内の既存バイナリを配布候補として再利用しません。各native jobは直前にbuild・依存検査したバイナリを`pack-native-ci.mjs`へ渡し、package内へコピーしてからpackします。このスクリプトはbuild出力とpacked binaryのSHA256一致を確認し、Node.js / Bun / Deno APIとNode.js / Bun CLIを一時install先で実行します。
 
 ```bash
-npm pack --dry-run --json
-npm pack ./npm/zenpix-darwin-arm64 --dry-run --json
-npm pack ./npm/zenpix-darwin-x64 --dry-run --json
-npm pack ./npm/zenpix-linux-arm64 --dry-run --json
-npm pack ./npm/zenpix-linux-x64 --dry-run --json
-npm pack ./npm/zenpix-win32-x64 --dry-run --json
-npm pack ./wasm --dry-run --json
+node scripts/pack-native-ci.mjs zenpix-darwin-arm64 build/libpict.dylib
+npm pack . --pack-destination packed
+npm pack ./wasm --pack-destination packed
 ```
 
-各JSONの`files`を確認し、全tarballに`LICENSE`と`THIRD_PARTY_LICENSES`があることを機械的に検査します。rootではbuild後の`js/dist/index.js`、`index.d.ts`、`index.deno.js`、`cli.js`が入ること、WASMでは次が入ることを確認します。
+上の2つの`npm pack`も、それぞれroot jobとclean WASM jobの内部で実行します。最後の`verify-release-candidate` jobは全7 jobのartifactをdownloadし、`verify-release-candidate.mjs`で次を機械検査して`SHA256SUMS`と7 tarballだけを再artifact化します。
+
+- package名とversionが予定した7件に完全一致し、重複や余分なtarballがない
+- root `optionalDependencies`が5 native packageと一致する
+- 全tarballに`LICENSE`と`THIRD_PARTY_LICENSES`がある
+- native tarballに対象の`libpict`、rootにJS/型/CLIとREADME参照画像・benchmark文書がある
+- WASMにbaseline / SIMDのJS・WASMとwrapperがある
+
+WASMでは具体的に次が必要です。
 
 - `dist/avif.js`, `dist/avif.wasm`
 - `dist/avif.simd.js`, `dist/avif.simd.wasm`
@@ -66,14 +97,10 @@ npm pack ./wasm --dry-run --json
 
 ## 4. packed zenpix-wasmをブラウザで検証する
 
-リポジトリ外の一時projectへローカルtarballをinstallし、次を確認します。
+CIはpacked tarballを展開してローカルHTTP serverから配信し、Playwright Chromiumで次を確認します。
 
-- [ ] Vite production buildが成功する
-- [ ] browser native ESMでもpackageの実ファイルをimportできる
-- [ ] `import createAvifModule from "zenpix-wasm"`がbaseline raw factoryを返す
-- [ ] `import { createAvifEncoder } from "zenpix-wasm/encoder"`が成功する
 - [ ] baseline / SIMDをwrapperから選択できる
-- [ ] RGB / RGBAのencode結果が得られ、出力にAVIFの`ftyp` boxがある
+- [ ] RGBAのencode結果が得られ、出力にAVIFの`ftyp` boxがある
 
 一時projectの生成物はリポジトリへ追加しません。
 
@@ -90,8 +117,11 @@ READMEとwebsiteの日英説明、WASM import path、対応範囲、性能に関
 
 - [ ] 公開対象commitが意図した履歴だけを祖先に持つ
 - [ ] GitHub Actions `Build & Test`が対象commitで成功している
-- [ ] CI成果物の5バイナリを対応するoptional packageへ配置している
-- [ ] 全7 tarballを最終versionで作り直し、内容とライセンスを再確認した
+- [ ] 5環境でSIMD有効版と強制scalar版がbuildされ、RGBAの水平・垂直SIMD到達テストとFFI差分テストが成功している
+- [ ] macOS arm64 / Linux arm64はNEON、macOS x64 / Linux x64 / Windows x64はSSE2の対象buildであることをworkflow logと成果物で確認している
+- [ ] npm 1.0.2はscalarであること、次versionのSIMD配布確認前に公開説明へ「公開済み」と書いていないことを確認している
+- [ ] 各native jobが直前のbuild出力をpackし、packed binaryとのSHA256一致を確認している
+- [ ] `zenpix-release-candidate` artifactに全7 tarballと`SHA256SUMS`があり、集約検査が成功している
 - [ ] `npm whoami`とpublish権限を確認した
 - [ ] npm publish、website deploy、tag、GitHub Releaseについて明示許可を得た
 
@@ -114,9 +144,9 @@ rootは5つのoptional packageの新versionがregistryに見えることを確�
 publish後は作業treeのtarballを信用せず、registryから各versionを再取得します。
 
 ```bash
-npm pack zenpix@1.0.2
-npm pack zenpix-wasm@1.1.0
-npm pack zenpix-darwin-arm64@1.0.2
+npm pack zenpix@1.0.3
+npm pack zenpix-wasm@1.1.1
+npm pack zenpix-darwin-arm64@1.0.3
 ```
 
 残り4 optional packageも同様に取得し、全7件のファイル一覧、`LICENSE`、`THIRD_PARTY_LICENSES`、version、root `optionalDependencies`を再検査します。別の一時projectでroot install/API/CLIとWASM browser E2Eも再実行します。
@@ -129,4 +159,4 @@ tag名は対象versionから作り、固定値をコピーしません。ネイ�
 
 ## GitHub Actionsと外部処理の境界
 
-現在の`.github/workflows/build.yml`は`main`と`feat/**`へのpush、`main`向けpull request、手動実行でbuild/testを起動します。npm publish、website deploy、tag、GitHub Releaseを自動実行するworkflowは含まれていません。
+現在の`.github/workflows/build.yml`は`main`、`feat/**`、`codex/**`へのpush、`main`向けpull request、手動実行でbuild/testを起動します。npm publish、website deploy、tag、GitHub Releaseを自動実行するworkflowは含まれていません。

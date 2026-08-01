@@ -119,21 +119,27 @@ AVIF encode実装はlibavifへ **YUV 4:4:4** を指定し、alpha qualityをloss
 |:---:|:---:|
 | ![Sharp で生成した比較画像](assets/sample_sharp.png) | ![zenpix で生成した比較画像](assets/sample_zenpix.png) |
 
-この比較画像は設定差を目視するための参考であり、zenpix が常に高画質であることを示す評価ではありません。
+このfixtureではSharpが8,960 bytes、zenpixが12,351 bytesでした。同じ`quality=60`でもzenpixの方が37.8%大きいため、細部の見え方を圧縮効率の優位性とは扱いません。ファイルサイズを近づけた客観比較では、このfixtureのRGB PSNRはSharpが約0.5 dB高い結果でした。
 
 処理時間は CPU、スレッド数、画像の特徴、解像度、依存ライブラリによって変わります。既存測定では、少コア VPS の一部イラストで zenpix が Sharp より速い結果と、Mac や単純構造の画像で Sharp が速い結果の両方があります。再配布可能な fixture がない測定値は一般性能の根拠には使用しません。条件と既知の制約は[ベンチマーク詳細](./docs/reference/benchmarks.md)を参照してください。
 
-ネイティブの Lanczos-3 実装は scalar の 2-pass separable filter です。垂直パスと AVIF encode は呼び出しごとにスレッド数を指定できます。NEON / SSE2 専用実装は含みません。
+開発の直接的な動機は、2 vCPU・2 GB VPS上の旧サイトで、事前縮小しないフル解像度AVIFを含む3成果物を1 requestで生成するSharp経路が実用時間内に完了しなかったことです。当時のrequest設計が環境の処理時間予算に合わなかった事例であり、Sharp一般の速度・CPU・memory特性を示すものではありません。
+
+ネイティブの Lanczos-3 はscalarの2-pass separable filterを正解基準とし、対応CPUではRGBAの水平・垂直passにarm64 NEONまたはx86_64 SSE2を使用します。1 / 2 / 3 channelと未対応CPUはscalarへfallbackします。`ZENPIX_ENABLE_SIMD=OFF`で同じsourceから強制scalar版をbuildできます。垂直passとAVIF encodeは呼び出しごとにスレッド数を指定できます。
+
+このSIMD経路はnative 1.0.3のrelease candidateです。GitHub Actionsの5 native環境ではSIMD版と強制scalar版を同じsourceからbuildし、C test、共有ライブラリFFI比較、AVIF roundtrip、runtime依存検査を実行します。各jobは直前にbuildしたbinaryをpackし、SHA256一致とNode.js / Bun / Deno API、CLI実変換を確認します。集約jobはroot、5 native optional packages、WASMの計7 tarballについてversion・必須ファイル・licenseを検査します。公開済みのnative 1.0.2はscalarのままで、npm registry上の1.0.3と本番利用は未確認です。
 
 ## 動作環境
 
 | ランタイム | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Node.js 18+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bun | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Deno 2.x | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Node.js 18+ | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-GitHub Actions は上記 5 種類のネイティブライブラリのビルドと、Lanczos-3・画像操作テストを実行します。全コーデックを全環境で実行する統合テストではありません。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
+表の「対象」はpackageとrelease-candidate workflowの対象を示します。1.0.3候補はmacOS 12以上、glibc 2.34以上のLinux、Windows x64を対象とし、Linux CIは`GLIBC_2.34`より新しいsymbol参照を拒否します。Alpine Linux（musl）とWindows arm64のビルド済みpackageは提供していません。
+
+公開済みmacOS版1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の配布問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetとしてbuild・検査します。候補のCI検証は完了していますが、npmで1.0.3を公開してregistryから再取得するまでは、公開版の問題が修正済みとは扱いません。
 
 HEIC / HEIFだけは追加の実行時依存があります。
 
@@ -183,7 +189,10 @@ MIT © 2026 月村つかさ
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
 npm run build
+bun run test/resize_simd_precision.ts
 bun run test/lanczos_precision.ts
 bun run test/ops_precision.ts
 ```

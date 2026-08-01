@@ -2,7 +2,7 @@ name: Build & Test
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, "feat/**", "codex/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -13,10 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar nasm
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
@@ -24,39 +32,78 @@ jobs:
           key: vcpkg-x64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
         run: |
-          vcpkg install --triplet x64-linux-static \
+          ./.vcpkg/vcpkg install --triplet x64-linux-static \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.so" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.so" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.so" bun run test/avif_roundtrip.ts
+      - name: Verify — distributable runtime dependencies
+        run: node scripts/verify-native-dependencies.mjs linux build/libpict.so
+      - name: Pack and smoke — Node.js / Bun / Deno / CLI
+        run: node scripts/pack-native-ci.mjs zenpix-linux-x64 build/libpict.so
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-linux-x64
-          path: build/libpict.so
+          path: |
+            build/libpict.so
+            packed/zenpix-linux-x64-1.0.3.tgz
 
   # ── Linux arm64 ────────────────────────────────────────────────────────────
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar
+          sudo apt-get install -y cmake ninja-build pkg-config curl zip unzip tar nasm
       - name: Cache vcpkg
         uses: actions/cache@v4
         with:
@@ -64,71 +111,236 @@ jobs:
           key: vcpkg-arm64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
         run: |
-          vcpkg install --triplet arm64-linux-static \
+          ./.vcpkg/vcpkg install --triplet arm64-linux-static \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.so" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.so" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.so" bun run test/avif_roundtrip.ts
+      - name: Verify — distributable runtime dependencies
+        run: node scripts/verify-native-dependencies.mjs linux build/libpict.so
+      - name: Pack and smoke — Node.js / Bun / Deno / CLI
+        run: node scripts/pack-native-ci.mjs zenpix-linux-arm64 build/libpict.so
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-linux-arm64
-          path: build/libpict.so
+          path: |
+            build/libpict.so
+            packed/zenpix-linux-arm64-1.0.3.tgz
 
   # ── macOS arm64 (Apple Silicon) ────────────────────────────────────────────
   build-darwin-arm64:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: brew install libavif webp jpeg-turbo libpng
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
+      - name: Install build tools
+        run: brew install nasm
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_installed
+          key: vcpkg-arm64-osx-zenpix-${{ hashFiles('vcpkg.json', 'cmake/triplets/arm64-osx-zenpix.cmake') }}-v1
+      - name: Install static vcpkg dependencies
+        run: |
+          ./.vcpkg/vcpkg install --triplet arm64-osx-zenpix \
+            --overlay-triplets=cmake/triplets \
+            --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" bun run test/resize_simd_precision.ts
+      - name: Benchmark — NEON vs scalar (3 trials)
+        run: |
+          for trial in 1 2 3; do
+            echo "trial=$trial"
+            ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" \
+              ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" \
+              BENCH_WARMUP_N=3 BENCH_MEASURE_N=15 \
+              bun run bench/resize-simd.ts
+          done
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dylib" bun run test/avif_roundtrip.ts
+      - name: Verify — self-contained macOS 12 artifact
+        run: node scripts/verify-native-dependencies.mjs darwin build/libpict.dylib
+      - name: Pack and smoke — Node.js / Bun / Deno / CLI
+        run: node scripts/pack-native-ci.mjs zenpix-darwin-arm64 build/libpict.dylib
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-darwin-arm64
-          path: build/libpict.dylib
+          path: |
+            build/libpict.dylib
+            packed/zenpix-darwin-arm64-1.0.3.tgz
 
   # ── macOS x64 (Intel) ──────────────────────────────────────────────────────
   build-darwin-x64:
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: brew install libavif webp jpeg-turbo libpng
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
+      - name: Install build tools
+        run: brew install nasm
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg_installed
+          key: vcpkg-x64-osx-zenpix-${{ hashFiles('vcpkg.json', 'cmake/triplets/x64-osx-zenpix.cmake') }}-v1
+      - name: Install static vcpkg dependencies
+        run: |
+          ./.vcpkg/vcpkg install --triplet x64-osx-zenpix \
+            --overlay-triplets=cmake/triplets \
+            --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-osx-zenpix \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-osx-zenpix \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" bun run test/resize_simd_precision.ts
+      - name: Benchmark — SSE2 vs scalar (3 trials)
+        run: |
+          for trial in 1 2 3; do
+            echo "trial=$trial"
+            ZENPIX_SIMD_LIB="$PWD/build/libpict.dylib" \
+              ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dylib" \
+              BENCH_WARMUP_N=3 BENCH_MEASURE_N=15 \
+              bun run bench/resize-simd.ts
+          done
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dylib" bun run test/avif_roundtrip.ts
+      - name: Verify — self-contained macOS 12 artifact
+        run: node scripts/verify-native-dependencies.mjs darwin build/libpict.dylib
+      - name: Pack and smoke — Node.js / Bun / Deno / CLI
+        run: node scripts/pack-native-ci.mjs zenpix-darwin-x64 build/libpict.dylib
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-darwin-x64
-          path: build/libpict.dylib
+          path: |
+            build/libpict.dylib
+            packed/zenpix-darwin-x64-1.0.3.tgz
 
   # ── Windows x64 ────────────────────────────────────────────────────────────
   build-windows-x64:
@@ -138,6 +350,15 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        shell: pwsh
+        run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
       - name: Enable MSVC (x64)
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -148,25 +369,85 @@ jobs:
           path: ${{ github.workspace }}/vcpkg_installed
           key: vcpkg-x64-windows-static-md-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
-        run: vcpkg install --triplet x64-windows-static-md
+        run: ./.vcpkg/vcpkg.exe install --triplet x64-windows-static-md
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Install JS deps and build wrapper
+        run: bun install --frozen-lockfile && bun run build
       - name: Build
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DZENPIX_ENABLE_SIMD=ON \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
           cmake --build build --parallel
+      - name: Test — native SIMD path
+        run: ctest --test-dir build --output-on-failure
+      - name: Build — forced scalar reference
+        run: |
+          cmake -S . -B build-scalar -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZENPIX_ENABLE_SIMD=OFF \
+            -DZENPIX_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
+          cmake --build build-scalar --parallel
+          ctest --test-dir build-scalar --output-on-failure
+      - name: Test — shared-library SIMD vs scalar
+        run: ZENPIX_SIMD_LIB="$PWD/build/libpict.dll" ZENPIX_SCALAR_LIB="$PWD/build-scalar/libpict.dll" bun run test/resize_simd_precision.ts
       - name: Test — Lanczos-3 precision
         run: bun run test/lanczos_precision.ts
       - name: Test — ops precision
         run: bun run test/ops_precision.ts
+      - name: Test — AVIF alpha, CICP, and ICC roundtrip
+        run: ZENPIX_LIB="$PWD/build/libpict.dll" bun run test/avif_roundtrip.ts
+      - name: Verify — distributable runtime dependencies
+        run: node scripts/verify-native-dependencies.mjs win32 build/libpict.dll
+      - name: Pack and smoke — Node.js / Bun / Deno / CLI
+        run: node scripts/pack-native-ci.mjs zenpix-win32-x64 build/libpict.dll
       - uses: actions/upload-artifact@v4
         with:
           name: libpict-win32-x64
-          path: build/libpict.dll
+          path: |
+            build/libpict.dll
+            packed/zenpix-win32-x64-1.0.3.tgz
+
+  # ── Browser WASM baseline + SIMD ───────────────────────────────────────────
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: 5.0.5
+          actions-cache-folder: emsdk-cache
+      - name: Install JS dependencies
+        run: bun install --frozen-lockfile
+      - name: Build — clean baseline and SIMD
+        run: ZENPIX_COPY_WEBSITE=0 npm run build:all --prefix wasm
+      - name: Test — generated Node-compatible WASM
+        run: npm test --prefix wasm
+      - name: Pack — fail closed on missing dist
+        run: mkdir -p packed && npm pack ./wasm --pack-destination packed
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Test — packed baseline and SIMD in Chromium
+        run: node scripts/test-packed-wasm-browser.mjs packed/zenpix-wasm-1.1.1.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zenpix-wasm-1.1.1
+          path: packed/zenpix-wasm-1.1.1.tgz
 
   # ── JS wrapper build (type-check + dist) ──────────────────────────────────
   build-js:
@@ -177,6 +458,49 @@ jobs:
         with:
           bun-version: latest
       - name: Install JS deps
-        run: bun install
+        run: bun install --frozen-lockfile
       - name: Build JS wrapper
         run: bun run build
+      - name: Pack root package
+        run: mkdir -p packed && npm pack . --pack-destination packed
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zenpix-root-1.0.3
+          path: packed/zenpix-1.0.3.tgz
+
+  # ── Documentation site build ──────────────────────────────────────────────
+  build-website:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install website dependencies
+        run: bun install --cwd website --frozen-lockfile
+      - name: Build documentation site
+        run: bun run --cwd website build
+
+  # ── Release candidate: exactly seven independently built tarballs ─────────
+  verify-release-candidate:
+    runs-on: ubuntu-latest
+    needs:
+      - build-linux-x64
+      - build-linux-arm64
+      - build-darwin-arm64
+      - build-darwin-x64
+      - build-windows-x64
+      - build-wasm
+      - build-js
+      - build-website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+      - name: Verify package set, metadata, and required files
+        run: node scripts/verify-release-candidate.mjs downloaded-artifacts release-candidate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zenpix-release-candidate
+          path: release-candidate

@@ -119,21 +119,27 @@ The AVIF encoder requests **YUV 4:4:4** from libavif and sets its alpha-quality 
 |:---:|:---:|
 | ![Comparison image generated with Sharp](assets/sample_sharp.png) | ![Comparison image generated with zenpix](assets/sample_zenpix.png) |
 
-These images illustrate output differences for one setting; they do not establish that zenpix is always higher quality.
+On this fixture, Sharp produced 8,960 bytes and zenpix produced 12,351 bytes. The zenpix output was 37.8% larger at the same numeric `quality=60`; more visible detail is therefore not treated as evidence of better compression efficiency. At near-matched sizes, Sharp had about 0.5 dB higher RGB PSNR on this fixture.
 
 Processing time depends on the CPU, thread count, image characteristics, resolution, and dependency versions. Existing measurements contain both cases where zenpix was faster on a low-core VPS for selected illustrations and cases where Sharp was faster on macOS or simple images. Results without redistributable fixtures are not treated as general performance evidence. See the [benchmark notes](./docs/reference/benchmarks.md) for conditions and limitations.
 
-The native Lanczos-3 implementation is a scalar two-pass separable filter. Its vertical pass and AVIF encoding accept a per-call thread count. zenpix does not include dedicated NEON or SSE2 implementations.
+The immediate motivation was a Sharp route on the old 2-vCPU, 2-GB VPS website that generated three outputs in one request, including a full-resolution AVIF without a preceding resize, and did not finish within a practical time. This was a request design that exceeded the environment's latency budget, not evidence of Sharp's general speed, CPU usage, or memory behavior.
+
+The native Lanczos-3 implementation keeps a scalar two-pass separable filter as its reference path. On supported CPUs, RGBA horizontal and vertical passes use arm64 NEON or x86_64 SSE2. One-, two-, and three-channel images and unsupported CPUs fall back to scalar. `ZENPIX_ENABLE_SIMD=OFF` builds the forced-scalar path from the same source. The vertical pass and AVIF encoding accept a per-call thread count.
+
+This SIMD path is the native 1.0.3 release candidate. On all five native targets, GitHub Actions builds the SIMD and forced-scalar variants from the same source and runs C tests, shared-library FFI comparisons, AVIF roundtrip tests, and runtime-dependency checks. Each job packs the binary it just built, verifies its SHA-256 identity, and runs packed Node.js, Bun, Deno, and CLI smoke tests. The aggregate job verifies versions, required files, and licenses across the root, five native optional packages, and WASM tarballs. Published native 1.0.2 remains scalar; registry-published 1.0.3 packages and production use remain unverified.
 
 ## Platform support
 
 | Runtime | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Node.js 18+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bun | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Deno 2.x | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Node.js 18+ | Target | Target | Target | Target | Target |
+| Bun | Target | Target | Target | Target | Target |
+| Deno 2.x | Target | Target | Target | Target | Target |
 
-GitHub Actions builds the five native libraries and runs Lanczos-3 and image-operation tests. It is not an all-codec runtime matrix. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
+“Target” means that a package and release-candidate workflow exist. The 1.0.3 candidate targets macOS 12 or later, Linux with glibc 2.34 or later, and Windows x64; Linux CI rejects references to symbols newer than `GLIBC_2.34`. Prebuilt packages are not provided for Alpine Linux (musl) or Windows arm64.
+
+Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links the codec dependencies and builds with a macOS 12.0 deployment target. Candidate CI verification is complete, but the published-package defect is not considered fixed until 1.0.3 is published and retrieved again from the registry.
 
 HEIC / HEIF has an additional runtime dependency:
 
@@ -183,7 +189,10 @@ Install the native dependencies, then run:
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
 npm run build
+bun run test/resize_simd_precision.ts
 bun run test/lanczos_precision.ts
 bun run test/ops_precision.ts
 ```

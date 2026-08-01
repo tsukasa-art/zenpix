@@ -7,6 +7,12 @@ import AvifDemo from '../../../components/AvifDemo.astro';
 
 zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解像度、コーデック実装によって変わります。**zenpixが一般にSharpより速い、または常に高画質であるとは主張しません。**
 
+## 開発動機の位置付け
+
+zenpixを作る前のサイトでは、2 vCPU・2 GB RAMのVPS上でSharpによるAVIF変換が実用時間内に完了しませんでした。当時の経路は、入力を事前縮小せず、同じrequestでフル解像度WebP、フル解像度AVIF、最大4096pxの原形式画像を生成し、R2 uploadまで待つ構成でした。nginxの応答待ちは60秒でした。
+
+4093×2894の同一fixtureで3出力を再現すると、M4 Pro上の制限付きLinuxコンテナでは約7.6秒でした。元の実VPSでは計算部分だけで22.13〜30.46秒・最大RSS 499〜523 MiBとなり、その大半をフル解像度AVIFが占めました。OOMや2コア占有は再現しなかったため、「当時の同期request設計がVPSの処理時間予算に合わなかった」という開発動機に限定し、Sharp一般のCPU・memory特性には広げません。
+
 ## 数値の位置付け
 
 以下は2026-05-25にzenpix 1.0.0で実施した過去の測定記録です。入力画像には再配布できないものが含まれるため、第三者がclone直後に再現できる一般性能の根拠ではありません。
@@ -30,7 +36,36 @@ zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解
 
 ## 画質設定について
 
-zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。異なるエンコーダの同じ`quality`値は同じ画質を意味せず、出力サイズも異なります。現在の比較スクリプトはSSIM / PSNR評価を行わないため、サンプル画像は設定差を目視する参考に限定してください。
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。異なるエンコーダの同じ`quality`値は同じ画質を意味せず、出力サイズも異なります。比較スクリプトは共通PNGを基準に出力サイズ、RGB PSNR、RGB MAEを記録し、サイズ差5%以内の組を抽出します。PSNRだけで知覚品質を代表できないため、目視結果と併用してください。
+
+2026-07-31の明色風景fixtureでは、同じq60でzenpixのRGB PSNRが0.624 dB高い一方、出力も37.8%大きくなりました。ほぼ同じサイズの2組ではSharpのRGB PSNRが約0.5 dB高く、同一qualityで細部が残ることを一般的な圧縮効率の優位性とは扱えません。
+
+## native 1.0.3候補のscalar対SIMD CI測定
+
+GitHub Actions run `30687176774`（head `2e48698d`）で、同じsourceからSIMD版と強制scalar版をportable CMake Release baselineでbuildしました。`bench/resize-simd.ts`が決定的なgradient/checker RGBA PNG（1920×1080）を生成し、各trialはwarm-up 3回、scalar / SIMDを交互に15組、全体を3回実行しています。
+
+| architecture / backend | 対象 | threads | median speedup範囲 |
+|---|---|---:|---:|
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize | 1 | 1.103〜1.256× |
+| macOS arm64 / NEON（Apple M1 Virtual） | raw RGBA resize | 4 | 1.086〜1.160× |
+| macOS arm64 / NEON（Apple M1 Virtual） | PNG → resize → AVIF | 1 | 1.044〜1.173× |
+| macOS arm64 / NEON（Apple M1 Virtual） | PNG → resize → AVIF | 4 | 1.045〜1.127× |
+| macOS arm64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.079× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize | 1 | 1.232〜1.297× |
+| macOS x64 / SSE2（Intel i7-8700B） | raw RGBA resize | 4 | 1.215〜1.284× |
+| macOS x64 / SSE2（Intel i7-8700B） | PNG → resize → AVIF | 1 | 1.200〜1.326× |
+| macOS x64 / SSE2（Intel i7-8700B） | PNG → resize → AVIF | 4 | 1.227〜1.249× |
+| macOS x64 / scalar fallback | raw RGB resize | 1 / 4 | 0.981〜1.046× |
+
+RGBAはNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runでは5 native環境の正確性・FFI・AVIF test、runtime依存検査、packed Node.js / Bun / Deno / CLI smokeと、全7 tarballの集約検査も通過しています。性能値はこのfixtureとrunnerに限り、一般的な高速化主張には使用しません。
+
+## 2 vCPU・2 GB制限下の補助測定
+
+Apple M4 Pro上のLinux arm64コンテナへ2 vCPU・2 GB・swapなしの上限を設定し、Node.js 20.19.2で単一fixtureを逐次処理しました。出力サイズを近づけた比較では、zenpix 1 threadの処理時間が約15〜17%短い一方、コンテナpeak memoryは約2.2〜2.5倍でした。Sharp 0.34.5の既定concurrencyは1、平均CPU使用量は約1.02 coresで、両方とも2 GB内で完走しました。
+
+この仮想化環境では「Sharpが2コアを使い切る」「zenpixの方が低メモリ」は再現しませんでした。並列requestや別fixtureへ一般化しません。
+
+2026-08-01には開発動機になった実VPS（x86_64、2 vCPU、RAM 1.9 GiB、swap 2 GiB）でもSharp 0.34.5を再測定しました。現在の1920×1080 AVIF変換は5.25秒・最大RSS 190 MiBで完走しました。一方、旧upload routeが行っていたフル解像度WebP＋AVIF＋原形式の同期生成は22.13〜30.46秒・最大RSS 499〜523 MiBで、段階分離ではフル解像度AVIFが15.38秒を占めました。OOMや2コア占有ではなく、重いAVIFを含む3出力とnetwork uploadをHTTP request内で逐次処理したことが、当時長時間完了しなかった最有力原因です。失敗時のlogは残っていないため、timeoutか手動中断かは断定しません。詳細条件はGitHubの`docs/reference/benchmarks.md`にあります。
 
 ## ブラウザでAVIF encodeを試す
 
@@ -48,6 +83,8 @@ npm run bench
 BENCH_FIXTURES=bench_input npm run bench
 AVIF_THREADS=4 npm run bench:threads
 bun bench/quality-compare.ts
+bench/run-low-resource.sh
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
 
 公開する結果には、OS、CPU、メモリ、依存バージョン、スレッド数、fixtureの配布可否を併記してください。

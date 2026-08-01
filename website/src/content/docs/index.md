@@ -92,7 +92,7 @@ if (result) writeFileSync("output.avif", result);
 | Feature | Description |
 |---|---|
 | Decode | JPEG / PNG / WebP / AVIF / GIF (first frame) |
-| Resize | Scalar two-pass Lanczos-3; fit modes: stretch / contain / cover |
+| Resize | Scalar-reference two-pass Lanczos-3; the 1.0.3 candidate uses NEON / SSE2 for RGBA with scalar fallback; fit modes: stretch / contain / cover |
 | Encode | WebP / AVIF (configurable threads) / PNG |
 | CLI | `npx zenpix` (batch & stdin/stdout support) |
 | RGBA | Background removal, rounded corners, white background compositing |
@@ -105,3 +105,5 @@ if (result) writeFileSync("output.avif", result);
 Processing time varies with the CPU, thread count, image characteristics, resolution, and dependency versions. Historical measurements include selected low-core VPS cases where zenpix was faster and macOS or other-image cases where Sharp was faster.
 
 Numbers without redistributable fixtures are not treated as general performance evidence. See [Benchmarks](/benchmarks) for conditions and limitations.
+
+The published zenpix 1.0.2 package is scalar. For the native 1.0.3 candidate, all five target jobs build and test the RGBA NEON / SSE2 and forced-scalar paths, then pack the freshly-built binary and verify its SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. The aggregate job checks the root, five native optional packages, and WASM tarballs. Registry-published native 1.0.3 packages and production use remain unverified.

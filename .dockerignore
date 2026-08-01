@@ -1,0 +1,13 @@
+.git
+build
+build-*
+node_modules
+js/dist
+bench/results
+test/fixtures
+vendor/*
+!vendor/stb/
+!vendor/stb/**
+website
+npm
+wasm

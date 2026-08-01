@@ -1,6 +1,6 @@
 {
   "name": "zenpix-darwin-arm64",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "zenpix native binary for macOS Apple Silicon (arm64)",
   "os": ["darwin"],
   "cpu": ["arm64"],

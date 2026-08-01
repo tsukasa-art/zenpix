@@ -9,11 +9,15 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 
 | Runtime | macOS arm64 | macOS x64 (Intel) | Linux x86_64 | Linux arm64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Node.js 18+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bun | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Deno 2.x | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Node.js 18+ | Target | Target | Target | Target | Target |
+| Bun | Target | Target | Target | Target | Target |
+| Deno 2.x | Target | Target | Target | Target | Target |
 
-Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). No build toolchain required.
+Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a package and release-candidate workflow exist. Published and candidate states are distinguished below.
+
+Published 1.0.2 optional packages use the scalar resize path. In the native 1.0.3 candidate, arm64 builds select NEON for RGBA resize and x86_64 builds select SSE2; all other cases fall back to scalar. All five target jobs build and test the SIMD and forced-scalar paths, then pack the freshly-built binary and verify its SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Registry-published 1.0.3 packages and production use remain unverified.
+
+Published macOS 1.0.2 binaries have a known packaging defect: they reference absolute Homebrew codec paths and require macOS 15.0 or later. The 1.0.3 candidate statically links those codecs and targets macOS 12.0. The Linux candidate requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
 
 **Unsupported environments**:
 - Alpine Linux (musl): requires glibc
@@ -94,8 +98,14 @@ To test a newer `libpict` than what is bundled in the optional packages:
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
 # → build/libpict.{dylib,so}
 
+# Forced-scalar reference build
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
+
 # Point to it via environment variable (takes priority over optional packages)
 ZENPIX_LIB=/path/to/libpict.dylib node your-script.js
 ```
 
 Resolution order: `ZENPIX_LIB` env var → `build/libpict.*` → `optionalDependencies`
+
+`ZENPIX_ENABLE_SIMD` defaults to `ON`; `ZENPIX_BUILD_TESTS` and `ZENPIX_MARCH_NATIVE` default to `OFF`. `ZENPIX_MARCH_NATIVE` is for local measurement and is not enabled for distributable builds.

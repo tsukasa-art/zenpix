@@ -92,7 +92,7 @@ if (result) writeFileSync("output.avif", result);
 | 機能 | 内容 |
 |---|---|
 | デコード | JPEG / PNG / WebP / AVIF / GIF（先頭フレーム） |
-| リサイズ | scalar 2-pass Lanczos-3、fit モード（stretch / contain / cover） |
+| リサイズ | scalar基準の2-pass Lanczos-3。1.0.3候補ではRGBAにNEON / SSE2、その他はscalar fallback。fitモード（stretch / contain / cover） |
 | エンコード | WebP / AVIF（threads 指定可）/ PNG |
 | CLI | `npx zenpix`（バッチ・stdin/stdout 対応） |
 | RGBA | 背景除去・角丸・白背景合成 |
@@ -105,3 +105,5 @@ if (result) writeFileSync("output.avif", result);
 処理時間はCPU、スレッド数、画像の特徴、解像度、依存ライブラリによって変わります。過去の測定には、少コアVPSの一部画像でzenpixが速い結果と、Macや別種の画像でSharpが速い結果の両方があります。
 
 再配布可能なfixtureがない数値は一般性能の根拠には使用しません。条件と制約は[ベンチマーク](/ja/benchmarks)を参照してください。
+
+公開済みnpm 1.0.2はscalarです。native 1.0.3候補ではRGBA用NEON / SSE2を5環境でbuild・testし、各CI jobが直前にbuildしたbinaryをpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査します。集約jobはroot、5 native optional packages、WASMの計7 tarballを検査します。npm registry上のnative 1.0.3と本番利用は未確認です。

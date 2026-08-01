@@ -7,6 +7,12 @@ import AvifDemo from '../../components/AvifDemo.astro';
 
 Processing time varies with the CPU, thread count, image characteristics, resolution, and codec implementation. **We do not claim that zenpix is generally faster than Sharp or always produces higher quality.**
 
+## Scope of the original motivation
+
+Before zenpix, the website's Sharp-based AVIF conversion did not finish within a practical time on a 2-vCPU, 2-GB VPS. That route did not resize before encoding. A single request generated a full-resolution WebP, a full-resolution AVIF, and an original-format output capped at 4096px, then waited for the R2 uploads. nginx waited 60 seconds for the upstream response.
+
+Reproducing those three outputs with the same 4093×2894 fixture took about 7.6 seconds in a constrained Linux container on an M4 Pro. On the original VPS, the compute portion alone took 22.13–30.46 seconds and reached 499–523 MiB maximum RSS; the full-resolution AVIF accounted for most of the time. Neither an OOM kill nor two-core saturation was reproduced. This supports the narrower conclusion that the synchronous request design exceeded the VPS latency budget, not a general claim about Sharp's CPU or memory behavior.
+
 ## Status of the numbers
 
 The following summary comes from measurements made on 2026-05-25 with zenpix 1.0.0. Some input images cannot be redistributed, so these numbers are historical observations rather than evidence that a third party can reproduce immediately after cloning the repository.
@@ -30,7 +36,36 @@ Because the fixtures are not redistributable, these observations are not general
 
 ## Quality settings
 
-The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alpha-quality option to lossless; actual output also depends on codec implementation and version. The same numeric `quality` value does not mean equal visual quality across different encoders, and output sizes differ. The current comparison script does not calculate SSIM or PSNR, so sample images are visual references only.
+The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alpha-quality option to lossless; actual output also depends on codec implementation and version. The same numeric `quality` value does not mean equal visual quality across different encoders, and output sizes differ. The comparison script records output size, RGB PSNR, and RGB MAE against a common PNG and finds pairs within a 5% size gap. PSNR does not represent perceptual quality by itself, so visual inspection remains necessary.
+
+On the bright-landscape fixture measured on 2026-07-31, zenpix at q60 had 0.624 dB higher RGB PSNR but also produced a 37.8% larger file. In two near-size-matched pairs, Sharp had about 0.5 dB higher RGB PSNR. More retained detail at the same numeric quality is therefore not treated as evidence of generally better compression efficiency.
+
+## Native 1.0.3 candidate: scalar vs SIMD in CI
+
+GitHub Actions run `30687176774` at head `2e48698d` built the SIMD and forced-scalar libraries from the same source with a portable CMake Release baseline. `bench/resize-simd.ts` generates a deterministic 1920×1080 gradient/checker RGBA PNG. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs, and the complete measurement was repeated three times.
+
+| Architecture / backend | Workload | Threads | Median speedup range |
+|---|---|---:|---:|
+| macOS arm64 / NEON (Apple M1 Virtual) | Raw RGBA resize | 1 | 1.103–1.256× |
+| macOS arm64 / NEON (Apple M1 Virtual) | Raw RGBA resize | 4 | 1.086–1.160× |
+| macOS arm64 / NEON (Apple M1 Virtual) | PNG → resize → AVIF | 1 | 1.044–1.173× |
+| macOS arm64 / NEON (Apple M1 Virtual) | PNG → resize → AVIF | 4 | 1.045–1.127× |
+| macOS arm64 / scalar fallback | Raw RGB resize | 1 / 4 | 0.981–1.079× |
+| macOS x64 / SSE2 (Intel i7-8700B) | Raw RGBA resize | 1 | 1.232–1.297× |
+| macOS x64 / SSE2 (Intel i7-8700B) | Raw RGBA resize | 4 | 1.215–1.284× |
+| macOS x64 / SSE2 (Intel i7-8700B) | PNG → resize → AVIF | 1 | 1.200–1.326× |
+| macOS x64 / SSE2 (Intel i7-8700B) | PNG → resize → AVIF | 4 | 1.227–1.249× |
+| macOS x64 / scalar fallback | Raw RGB resize | 1 / 4 | 0.981–1.046× |
+
+All three trials improved for RGBA on both NEON and SSE2; RGB is outside the SIMD path and did not improve. The same run passed correctness, FFI, AVIF, runtime-dependency, and packed Node.js, Bun, Deno, and CLI checks on all five native targets, plus aggregate verification of all seven tarballs. These performance numbers still apply only to this fixture and these runners.
+
+## Supplementary 2-vCPU / 2-GB measurement
+
+A Linux arm64 container on an Apple M4 Pro was limited to 2 vCPUs, 2 GB of RAM, and no swap. A single fixture was processed sequentially under Node.js 20.19.2. At near-matched output sizes, zenpix with one thread took about 15–17% less time, while container peak memory was about 2.2–2.5 times higher. Sharp 0.34.5 selected a default concurrency of one, averaged about 1.02 CPU cores, and both implementations completed within 2 GB.
+
+This virtualized run did not reproduce either “Sharp consumes both cores” or “zenpix uses less memory.” It is not generalized to concurrent requests or other fixtures.
+
+On 2026-08-01, Sharp 0.34.5 was also rerun on the original x86_64 VPS that motivated the project (2 vCPUs, 1.9 GiB RAM, and 2 GiB swap). The current 1920×1080 AVIF workload completed in 5.25 seconds with 190 MiB maximum RSS. The old upload route, however, synchronously generated full-resolution WebP, full-resolution AVIF, and an original-format output; its compute portion took 22.13–30.46 seconds with 499–523 MiB maximum RSS. A separated run attributed 15.38 seconds to the full-resolution AVIF stage alone. The most likely cause of the historical “never completed” experience was therefore a long synchronous HTTP request containing three encodes plus network uploads, not two-core saturation or an OOM kill. Historical failure logs are unavailable, so a client/proxy timeout cannot be distinguished from manual cancellation. Full conditions are recorded in `docs/reference/benchmarks.md` on GitHub.
 
 ## Try AVIF encoding in the browser
 
@@ -48,6 +83,8 @@ npm run bench
 BENCH_FIXTURES=bench_input npm run bench
 AVIF_THREADS=4 npm run bench:threads
 bun bench/quality-compare.ts
+bench/run-low-resource.sh
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
 
 Published results should include the OS, CPU, memory, dependency versions, thread count, and whether the fixtures can be redistributed.

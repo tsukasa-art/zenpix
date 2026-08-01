@@ -6,11 +6,15 @@
 
 | ランタイム | macOS arm64 | macOS x64（Intel） | Linux x64 | Linux arm64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Node.js 18+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bun | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Deno 2.x | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Node.js 18+ | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。ビルド環境は一切不要です。
+各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」はpackageとrelease-candidate workflowの対象を示します。公開済みversionと候補の状態は次で区別します。
+
+公開済み1.0.2のoptional packageはscalarです。native 1.0.3候補では、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選び、その他はscalarへfallbackします。5環境のworkflowはSIMD版と強制scalar版をbuild・testし、直前のbuild出力をpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査します。npm registry上の1.0.3と本番利用は未確認です。
+
+公開済みmacOS 1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetにします。Linux候補はglibc 2.34以上を対象とし、CIで`GLIBC_2.34`より新しいsymbol参照を拒否します。Windows x64はVC++ Redistributableが必要になる場合があります。
 
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応
@@ -102,8 +106,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 # → build/libpict.{dylib,so}
 
+# SIMDを無効にした正解基準build
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
+
 # 環境変数でパスを指定（optional より優先して読み込まれる）
 ZENPIX_LIB=/path/to/libpict.dylib node your-script.js
 ```
 
 `libpict` の解決順：`ZENPIX_LIB` 環境変数 → `build/libpict.*` → `optionalDependencies`
+
+`ZENPIX_ENABLE_SIMD`は既定で`ON`、`ZENPIX_BUILD_TESTS`と`ZENPIX_MARCH_NATIVE`は既定で`OFF`です。`ZENPIX_MARCH_NATIVE`はローカル測定用であり、配布buildでは有効にしません。
