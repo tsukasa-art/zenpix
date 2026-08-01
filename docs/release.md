@@ -4,7 +4,7 @@
 
 `npm publish`、website deploy、tag作成、GitHub Release作成は外部状態を変更します。**それぞれ明示的な許可を得るまで実行しません。** GitHubへのpushだけでは、既存のnpm tarballや公開済みwebsiteは更新されません。
 
-以下では例としてネイティブ版を`1.0.3`、WASM版を`1.1.1`とします。次回以降は対象versionへ読み替え、固定されたversionを使わないでください。
+以下では例としてネイティブ版を`1.0.4`、WASM版を`1.1.2`とします。次回以降は対象versionへ読み替え、固定されたversionを使わないでください。
 
 ## 1. 公開差分とversionを確定する
 
@@ -144,9 +144,9 @@ rootは5つのoptional packageの新versionがregistryに見えることを確�
 publish後は作業treeのtarballを信用せず、registryから各versionを再取得します。
 
 ```bash
-npm pack zenpix@1.0.3
-npm pack zenpix-wasm@1.1.1
-npm pack zenpix-darwin-arm64@1.0.3
+npm pack zenpix@1.0.4
+npm pack zenpix-wasm@1.1.2
+npm pack zenpix-darwin-arm64@1.0.4
 ```
 
 残り4 optional packageも同様に取得し、全7件のファイル一覧、`LICENSE`、`THIRD_PARTY_LICENSES`、version、root `optionalDependencies`を再検査します。別の一時projectでroot install/API/CLIとWASM browser E2Eも再実行します。

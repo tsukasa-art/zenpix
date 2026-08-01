@@ -2,6 +2,14 @@
 
 このファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の体裁に近づけ、利用者向けの差分を記録する。
 
+## [1.0.4 / zenpix-wasm 1.1.2] - 2026-08-01
+
+### 配布説明の修正
+
+- npm tarball内のREADMEとthird-party noticeから、公開前後で真偽が変わる「候補」「未公開」表記を除き、package version・CI検査・公開後検証を別々に記述した。
+- native rootと5 optional packageを1.0.4、`zenpix-wasm`を1.1.2へ更新した。公開API、native実装、WASM APIは変更しない。
+- 1.0.3 / 1.1.1の実装とartifact検証結果は有効だが、immutableなnpm tarball内READMEが公開後も候補表記のまま残るため、説明修正版をpatch releaseとして再生成する。
+
 ## [1.0.3 / zenpix-wasm 1.1.1] - 2026-08-01
 
 ### ネイティブresize SIMD

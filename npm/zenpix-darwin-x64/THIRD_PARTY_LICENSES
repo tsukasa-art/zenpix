@@ -3,9 +3,9 @@ Third-Party Licenses
 
 zenpix native packages statically link the codec libraries listed below, except
 for libheif, which is loaded from the user's system only when HEIC decode is
-requested. Versions identify the dependencies pinned by vcpkg.json for the
-1.0.3 release candidate; the candidate is not published until CI rebuilds and
-verifies every platform artifact.
+requested. Versions identify the dependencies pinned by vcpkg.json for native
+1.0.4 packages. CI rebuilds and verifies every platform artifact before it is
+used as a release asset.
 
 --------------------------------------------------------------------------------
 1. libjpeg-turbo

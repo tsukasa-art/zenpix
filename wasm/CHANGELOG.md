@@ -2,6 +2,11 @@
 
 [`zenpix-wasm`](https://www.npmjs.com/package/zenpix-wasm)（ブラウザ向け AVIF エンコード専用）の利用者向け差分。
 
+## [1.1.2] - 2026-08-01
+
+- npm tarball内READMEの公開前後で真偽が変わるversion表記を、package自身のversionと検証手順を示す状態非依存の説明へ修正する。
+- baseline / SIMD成果物、公開API、同梱codecは1.1.1から変更しない。
+
 ## [1.1.1] - 2026-08-01
 
 - clean buildでbaseline / SIMDのJS・WASM成果物がすべて存在することをpack前に検査する。

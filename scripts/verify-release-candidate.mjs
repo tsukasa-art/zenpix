@@ -14,13 +14,13 @@ const inputDir = resolve(process.argv[2] ?? "downloaded-artifacts");
 const outputDir = resolve(process.argv[3] ?? "release-candidate");
 
 const expected = new Map([
-  ["zenpix", { version: "1.0.3", binary: null }],
-  ["zenpix-darwin-arm64", { version: "1.0.3", binary: "libpict.dylib" }],
-  ["zenpix-darwin-x64", { version: "1.0.3", binary: "libpict.dylib" }],
-  ["zenpix-linux-arm64", { version: "1.0.3", binary: "libpict.so" }],
-  ["zenpix-linux-x64", { version: "1.0.3", binary: "libpict.so" }],
-  ["zenpix-win32-x64", { version: "1.0.3", binary: "libpict.dll" }],
-  ["zenpix-wasm", { version: "1.1.1", binary: null }],
+  ["zenpix", { version: "1.0.4", binary: null }],
+  ["zenpix-darwin-arm64", { version: "1.0.4", binary: "libpict.dylib" }],
+  ["zenpix-darwin-x64", { version: "1.0.4", binary: "libpict.dylib" }],
+  ["zenpix-linux-arm64", { version: "1.0.4", binary: "libpict.so" }],
+  ["zenpix-linux-x64", { version: "1.0.4", binary: "libpict.so" }],
+  ["zenpix-win32-x64", { version: "1.0.4", binary: "libpict.dll" }],
+  ["zenpix-wasm", { version: "1.1.2", binary: null }],
 ]);
 
 const rootOptionalDependencies = Object.fromEntries(
