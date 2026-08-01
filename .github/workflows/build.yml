@@ -13,6 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: |
           sudo apt-get update -qq
@@ -24,7 +32,7 @@ jobs:
           key: vcpkg-x64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
         run: |
-          vcpkg install --triplet x64-linux-static \
+          ./.vcpkg/vcpkg install --triplet x64-linux-static \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
@@ -41,7 +49,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=ON \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -54,7 +62,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=OFF \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -84,6 +92,14 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: |
           sudo apt-get update -qq
@@ -95,7 +111,7 @@ jobs:
           key: vcpkg-arm64-linux-static-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
         run: |
-          vcpkg install --triplet arm64-linux-static \
+          ./.vcpkg/vcpkg install --triplet arm64-linux-static \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
@@ -112,7 +128,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=ON \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -125,7 +141,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=OFF \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-linux-static \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -155,6 +171,14 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: brew install nasm
       - name: Cache vcpkg
@@ -164,7 +188,7 @@ jobs:
           key: vcpkg-arm64-osx-zenpix-${{ hashFiles('vcpkg.json', 'cmake/triplets/arm64-osx-zenpix.cmake') }}-v1
       - name: Install static vcpkg dependencies
         run: |
-          vcpkg install --triplet arm64-osx-zenpix \
+          ./.vcpkg/vcpkg install --triplet arm64-osx-zenpix \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
@@ -182,7 +206,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DZENPIX_ENABLE_SIMD=ON \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -196,7 +220,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DZENPIX_ENABLE_SIMD=OFF \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=arm64-osx-zenpix \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -235,6 +259,14 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        run: ./.vcpkg/bootstrap-vcpkg.sh -disableMetrics
       - name: Install build tools
         run: brew install nasm
       - name: Cache vcpkg
@@ -244,7 +276,7 @@ jobs:
           key: vcpkg-x64-osx-zenpix-${{ hashFiles('vcpkg.json', 'cmake/triplets/x64-osx-zenpix.cmake') }}-v1
       - name: Install static vcpkg dependencies
         run: |
-          vcpkg install --triplet x64-osx-zenpix \
+          ./.vcpkg/vcpkg install --triplet x64-osx-zenpix \
             --overlay-triplets=cmake/triplets \
             --x-install-root=${{ github.workspace }}/vcpkg_installed
       - uses: oven-sh/setup-bun@v2
@@ -262,7 +294,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DZENPIX_ENABLE_SIMD=ON \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-osx-zenpix \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -276,7 +308,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DZENPIX_ENABLE_SIMD=OFF \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-osx-zenpix \
             -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
             -DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed
@@ -318,6 +350,15 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+          path: .vcpkg
+      - name: Bootstrap pinned vcpkg
+        shell: pwsh
+        run: .\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
       - name: Enable MSVC (x64)
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -328,7 +369,7 @@ jobs:
           path: ${{ github.workspace }}/vcpkg_installed
           key: vcpkg-x64-windows-static-md-${{ hashFiles('vcpkg.json') }}-v1
       - name: Install vcpkg dependencies
-        run: vcpkg install --triplet x64-windows-static-md
+        run: ./.vcpkg/vcpkg.exe install --triplet x64-windows-static-md
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -343,7 +384,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=ON \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
           cmake --build build --parallel
       - name: Test — native SIMD path
@@ -354,7 +395,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DZENPIX_ENABLE_SIMD=OFF \
             -DZENPIX_BUILD_TESTS=ON \
-            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-windows-static-md
           cmake --build build-scalar --parallel
           ctest --test-dir build-scalar --output-on-failure
