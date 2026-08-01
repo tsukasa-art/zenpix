@@ -24,13 +24,15 @@ function run(command, args, options = {}) {
     encoding: "utf8",
     stdio: options.capture ? "pipe" : "inherit",
     env: process.env,
+    shell: process.platform === "win32" && command === "npm",
   });
   if (result.status !== 0) {
     if (options.capture) {
       process.stderr.write(result.stdout ?? "");
       process.stderr.write(result.stderr ?? "");
     }
-    throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}`);
+    const detail = result.error ? `: ${result.error.message}` : "";
+    throw new Error(`${command} ${args.join(" ")} failed with exit ${result.status}${detail}`);
   }
   return result.stdout ?? "";
 }
