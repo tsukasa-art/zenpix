@@ -2,6 +2,17 @@
 
 [`zenpix-wasm`](https://www.npmjs.com/package/zenpix-wasm)（ブラウザ向け AVIF エンコード専用）の利用者向け差分。
 
+## [Unreleased]
+
+### 1.1.0
+
+- package rootのdefault exportを、公開済み1.0.0と同じbaseline版raw Emscripten factoryとして維持。
+- `zenpix-wasm/encoder`に`createAvifEncoder` wrapperを追加し、baseline / SIMD成果物を選択可能にした。
+- `zenpix-wasm/raw`をbaseline版raw factoryの明示的aliasとして追加。
+- 公開tarballへ既存の`LICENSE`と`THIRD_PARTY_LICENSES`を同梱。
+
+root importの差し替えは行わず、1.0.0のESM・browser向けraw APIを維持する。
+
 ## [1.0.0] - 2026-05-28
 
 ### 変更

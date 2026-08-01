@@ -153,7 +153,7 @@ function writeOutput(dest: string, data: Buffer): void {
 
 function printHelp(): void {
   process.stdout.write(`\
-zenpix v${getVersion()} — high-performance image converter (AVIF / WebP / PNG)
+zenpix v${getVersion()} — native image converter (AVIF / WebP / PNG)
 
 Usage:
   zenpix [input...] [output] [options]

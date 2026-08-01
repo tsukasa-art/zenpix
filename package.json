@@ -1,7 +1,7 @@
 {
   "name": "zenpix",
-  "version": "1.0.1",
-  "description": "High-performance image processing engine. Decode, resize, WebP/AVIF/PNG encode.",
+  "version": "1.0.3",
+  "description": "Native C image processing for Node.js, Bun, and Deno via a TypeScript API and CLI.",
   "type": "module",
   "main": "js/dist/index.js",
   "types": "js/dist/index.d.ts",
@@ -18,11 +18,14 @@
   "files": [
     "js/dist",
     "README.md",
-    "LICENSE"
+    "README.en.md",
+    "README.ja.md",
+    "LICENSE",
+    "THIRD_PARTY_LICENSES"
   ],
   "scripts": {
-    "build": "tsc && esbuild js/src/index.deno.ts --bundle=false --platform=neutral --format=esm --outfile=js/dist/index.deno.js && bun scripts/add-shebang.mjs",
-    "prepublishOnly": "npm run build",
+    "build": "node scripts/clean-dist.mjs && tsc && esbuild js/src/index.deno.ts --bundle=false --platform=neutral --format=esm --outfile=js/dist/index.deno.js && node scripts/add-shebang.mjs",
+    "prepack": "npm run build",
     "wasm": "bash scripts/build-wasm.sh",
     "wasm:simd": "bash scripts/build-wasm.sh --simd",
     "wasm:all": "bash scripts/build-wasm.sh && bash scripts/build-wasm.sh --simd",
@@ -43,11 +46,11 @@
     "url": "https://github.com/tsukasa-art/zenpix.git"
   },
   "optionalDependencies": {
-    "zenpix-darwin-arm64": "1.0.1",
-    "zenpix-darwin-x64": "1.0.1",
-    "zenpix-linux-x64": "1.0.1",
-    "zenpix-linux-arm64": "1.0.1",
-    "zenpix-win32-x64": "1.0.1"
+    "zenpix-darwin-arm64": "1.0.3",
+    "zenpix-darwin-x64": "1.0.3",
+    "zenpix-linux-x64": "1.0.3",
+    "zenpix-linux-arm64": "1.0.3",
+    "zenpix-win32-x64": "1.0.3"
   },
   "dependencies": {
     "koffi": "^2.16.0"
