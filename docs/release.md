@@ -119,7 +119,7 @@ READMEとwebsiteの日英説明、WASM import path、対応範囲、性能に関
 - [ ] GitHub Actions `Build & Test`が対象commitで成功している
 - [ ] 5環境でSIMD有効版と強制scalar版がbuildされ、RGBAの水平・垂直SIMD到達テストとFFI差分テストが成功している
 - [ ] macOS arm64 / Linux arm64はNEON、macOS x64 / Linux x64 / Windows x64はSSE2の対象buildであることをworkflow logと成果物で確認している
-- [ ] npm 1.0.2はscalarであること、次versionのSIMD配布確認前に公開説明へ「公開済み」と書いていないことを確認している
+- [ ] npm registry上の現行versionと次versionの実装差を確認し、次versionの配布確認前に公開説明へ未公開機能を「公開済み」と書いていない
 - [ ] 各native jobが直前のbuild出力をpackし、packed binaryとのSHA256一致を確認している
 - [ ] `zenpix-release-candidate` artifactに全7 tarballと`SHA256SUMS`があり、集約検査が成功している
 - [ ] `npm whoami`とpublish権限を確認した

@@ -75,7 +75,7 @@ zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをl
 
 2026-07-31に明色風景fixtureを960px幅へリサイズして比較したところ、同じ`quality=60`ではzenpixの方がRGB PSNRは0.624 dB高い一方、ファイルサイズも37.8%大きくなりました。ほぼ同じサイズの組では、Sharp q57対zenpix q45でSharpが0.511 dB、Sharp q72対zenpix q60でSharpが0.499 dB高い結果でした。したがって、このfixtureの同一quality比較でzenpixが細部を多く残したことは、一般的な圧縮効率の優位性を意味しません。
 
-## native 1.0.3候補のscalar対SIMD CI測定
+## native 1.0.3のscalar対SIMD CI測定
 
 GitHub Actions run `30687176774`（head `2e48698d`）で、同じsourceからSIMD版と強制scalar版をCMake Releaseのportable baselineでbuildしました。`bench/resize-simd.ts`が生成する決定的なgradient/checker RGBA PNG（1920×1080）を使い、各trialはwarm-up 3回、scalar / SIMDを交互に15組、中央値を使用し、全体を3回実行しました。
 

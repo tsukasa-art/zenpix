@@ -40,7 +40,7 @@ The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alph
 
 On the bright-landscape fixture measured on 2026-07-31, zenpix at q60 had 0.624 dB higher RGB PSNR but also produced a 37.8% larger file. In two near-size-matched pairs, Sharp had about 0.5 dB higher RGB PSNR. More retained detail at the same numeric quality is therefore not treated as evidence of generally better compression efficiency.
 
-## Native 1.0.3 candidate: scalar vs SIMD in CI
+## Native 1.0.3: scalar vs SIMD in CI
 
 GitHub Actions run `30687176774` at head `2e48698d` built the SIMD and forced-scalar libraries from the same source with a portable CMake Release baseline. `bench/resize-simd.ts` generates a deterministic 1920×1080 gradient/checker RGBA PNG. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs, and the complete measurement was repeated three times.
 

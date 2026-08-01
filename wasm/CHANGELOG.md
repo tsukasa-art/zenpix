@@ -2,7 +2,7 @@
 
 [`zenpix-wasm`](https://www.npmjs.com/package/zenpix-wasm)（ブラウザ向け AVIF エンコード専用）の利用者向け差分。
 
-## [1.1.1] - 未公開
+## [1.1.1] - 2026-08-01
 
 - clean buildでbaseline / SIMDのJS・WASM成果物がすべて存在することをpack前に検査する。
 - packed tarballのbaseline / SIMD encodeをChromiumで検証する。
