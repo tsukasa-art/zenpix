@@ -59,20 +59,16 @@ try {
   const rootJson = JSON.parse(run("npm", ["pack", repoRoot, "--pack-destination", temp, "--json"], { capture: true }));
   const rootTarball = join(temp, rootJson[0].filename);
 
-  const unpacked = join(temp, "unpacked");
-  mkdirSync(unpacked);
-  run("tar", ["-xzf", optionalTarball, "-C", unpacked]);
-  const packedBinary = join(unpacked, "package", basename(sourcePath));
-  if (sha256(sourcePath) !== sha256(packedBinary)) {
-    throw new Error("packed native binary does not match the binary built in this CI job");
-  }
-
   const smoke = join(temp, "smoke");
   mkdirSync(smoke);
   writeFileSync(join(smoke, "package.json"), JSON.stringify({ type: "module", private: true }, null, 2));
   cpSync(join(repoRoot, "test", "packed-native-smoke.mjs"), join(smoke, "packed-native-smoke.mjs"));
   cpSync(join(repoRoot, "test", "packed-deno-smoke.mjs"), join(smoke, "packed-deno-smoke.mjs"));
   run("npm", ["install", rootTarball, optionalTarball, "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: smoke });
+  const installedBinary = join(smoke, "node_modules", packageName, basename(sourcePath));
+  if (!existsSync(installedBinary) || sha256(sourcePath) !== sha256(installedBinary)) {
+    throw new Error("installed native binary does not match the binary built in this CI job");
+  }
   run("node", ["packed-native-smoke.mjs"], { cwd: smoke });
   run("bun", ["packed-native-smoke.mjs"], { cwd: smoke });
   run("deno", ["run", "--allow-read", "--allow-ffi", "packed-deno-smoke.mjs"], { cwd: smoke });
