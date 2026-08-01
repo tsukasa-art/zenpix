@@ -15,9 +15,9 @@ description: Supported OS and runtimes for zenpix, plus solutions to common erro
 
 Platform binaries are automatically selected via optional packages (`zenpix-darwin-arm64`, etc.). “Target” means that a published package and CI workflow exist.
 
-Published 1.0.3 optional packages select NEON for RGBA resize on arm64 and SSE2 on x86_64; all other cases fall back to scalar. All five target jobs built and tested the SIMD and forced-scalar paths, then packed their freshly-built binaries and verified SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Those same tarballs were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh registry install and CLI conversion on macOS arm64.
+Published 1.0.4 optional packages select NEON for RGBA resize on arm64 and SSE2 on x86_64; all other cases fall back to scalar. All five target jobs built and tested the SIMD and forced-scalar paths, then packed their freshly-built binaries and verified SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. Those same tarballs were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh registry install and API / CLI conversion on macOS arm64.
 
-Published macOS 1.0.3 binaries statically link those codecs and target macOS 12.0. Linux 1.0.3 requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
+Published macOS 1.0.4 binaries statically link those codecs and target macOS 12.0. Linux 1.0.4 requires glibc 2.34 or later, and CI rejects references to symbols newer than `GLIBC_2.34`; Windows x64 may require the Visual C++ Redistributable.
 
 **Unsupported environments**:
 - Alpine Linux (musl): requires glibc

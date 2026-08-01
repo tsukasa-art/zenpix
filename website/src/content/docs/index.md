@@ -92,7 +92,7 @@ if (result) writeFileSync("output.avif", result);
 | Feature | Description |
 |---|---|
 | Decode | JPEG / PNG / WebP / AVIF / GIF (first frame) |
-| Resize | Scalar-reference two-pass Lanczos-3; version 1.0.3 uses NEON / SSE2 for RGBA with scalar fallback; fit modes: stretch / contain / cover |
+| Resize | Scalar-reference two-pass Lanczos-3; version 1.0.4 uses NEON / SSE2 for RGBA with scalar fallback; fit modes: stretch / contain / cover |
 | Encode | WebP / AVIF (configurable threads) / PNG |
 | CLI | `npx zenpix` (batch & stdin/stdout support) |
 | RGBA | Background removal, rounded corners, white background compositing |
@@ -106,4 +106,4 @@ Processing time varies with the CPU, thread count, image characteristics, resolu
 
 Numbers without redistributable fixtures are not treated as general performance evidence. See [Benchmarks](/benchmarks) for conditions and limitations.
 
-Published zenpix 1.0.3 uses NEON / SSE2 for RGBA with scalar fallback. All five target jobs built and tested the SIMD and forced-scalar paths, packed their freshly-built binaries, and verified SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. The aggregate-verified root, five native optional packages, and WASM tarballs were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh registry install and CLI conversion on macOS arm64. Post-publication execution on the other four native targets remains unverified.
+Published zenpix 1.0.4 uses NEON / SSE2 for RGBA with scalar fallback; its native implementation is unchanged from 1.0.3. All five target jobs built and tested the SIMD and forced-scalar paths, packed their freshly-built binaries, and verified SHA-256 identity, runtime dependencies, and Node.js, Bun, Deno, and CLI execution. The aggregate-verified root and five native optional packages at 1.0.4, plus zenpix-wasm 1.1.2, were published to npm. Registry metadata and integrity were checked for every package, followed by a fresh API / CLI conversion on macOS arm64 and registry-retrieved WASM baseline / SIMD Chromium encoding. Post-publication execution on the other four native targets remains unverified.
