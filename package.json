@@ -1,6 +1,6 @@
 {
   "name": "zenpix",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Native C image processing for Node.js, Bun, and Deno via a TypeScript API and CLI.",
   "type": "module",
   "main": "js/dist/index.js",
@@ -49,11 +49,11 @@
     "url": "https://github.com/tsukasa-art/zenpix.git"
   },
   "optionalDependencies": {
-    "zenpix-darwin-arm64": "1.0.3",
-    "zenpix-darwin-x64": "1.0.3",
-    "zenpix-linux-x64": "1.0.3",
-    "zenpix-linux-arm64": "1.0.3",
-    "zenpix-win32-x64": "1.0.3"
+    "zenpix-darwin-arm64": "1.0.4",
+    "zenpix-darwin-x64": "1.0.4",
+    "zenpix-linux-x64": "1.0.4",
+    "zenpix-linux-arm64": "1.0.4",
+    "zenpix-win32-x64": "1.0.4"
   },
   "dependencies": {
     "koffi": "^2.16.0"

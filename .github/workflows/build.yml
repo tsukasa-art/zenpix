@@ -85,7 +85,7 @@ jobs:
           name: libpict-linux-x64
           path: |
             build/libpict.so
-            packed/zenpix-linux-x64-1.0.3.tgz
+            packed/zenpix-linux-x64-1.0.4.tgz
 
   # ── Linux arm64 ────────────────────────────────────────────────────────────
   build-linux-arm64:
@@ -164,7 +164,7 @@ jobs:
           name: libpict-linux-arm64
           path: |
             build/libpict.so
-            packed/zenpix-linux-arm64-1.0.3.tgz
+            packed/zenpix-linux-arm64-1.0.4.tgz
 
   # ── macOS arm64 (Apple Silicon) ────────────────────────────────────────────
   build-darwin-arm64:
@@ -252,7 +252,7 @@ jobs:
           name: libpict-darwin-arm64
           path: |
             build/libpict.dylib
-            packed/zenpix-darwin-arm64-1.0.3.tgz
+            packed/zenpix-darwin-arm64-1.0.4.tgz
 
   # ── macOS x64 (Intel) ──────────────────────────────────────────────────────
   build-darwin-x64:
@@ -340,7 +340,7 @@ jobs:
           name: libpict-darwin-x64
           path: |
             build/libpict.dylib
-            packed/zenpix-darwin-x64-1.0.3.tgz
+            packed/zenpix-darwin-x64-1.0.4.tgz
 
   # ── Windows x64 ────────────────────────────────────────────────────────────
   build-windows-x64:
@@ -416,7 +416,7 @@ jobs:
           name: libpict-win32-x64
           path: |
             build/libpict.dll
-            packed/zenpix-win32-x64-1.0.3.tgz
+            packed/zenpix-win32-x64-1.0.4.tgz
 
   # ── Browser WASM baseline + SIMD ───────────────────────────────────────────
   build-wasm:
@@ -443,11 +443,11 @@ jobs:
       - name: Install Chromium
         run: bunx playwright install --with-deps chromium
       - name: Test — packed baseline and SIMD in Chromium
-        run: node scripts/test-packed-wasm-browser.mjs packed/zenpix-wasm-1.1.1.tgz
+        run: node scripts/test-packed-wasm-browser.mjs packed/zenpix-wasm-1.1.2.tgz
       - uses: actions/upload-artifact@v4
         with:
-          name: zenpix-wasm-1.1.1
-          path: packed/zenpix-wasm-1.1.1.tgz
+          name: zenpix-wasm-1.1.2
+          path: packed/zenpix-wasm-1.1.2.tgz
 
   # ── JS wrapper build (type-check + dist) ──────────────────────────────────
   build-js:
@@ -465,8 +465,8 @@ jobs:
         run: mkdir -p packed && npm pack . --pack-destination packed
       - uses: actions/upload-artifact@v4
         with:
-          name: zenpix-root-1.0.3
-          path: packed/zenpix-1.0.3.tgz
+          name: zenpix-root-1.0.4
+          path: packed/zenpix-1.0.4.tgz
 
   # ── Documentation site build ──────────────────────────────────────────────
   build-website:

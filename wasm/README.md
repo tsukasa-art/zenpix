@@ -21,7 +21,7 @@ libavif + libaomをEmscriptenでWebAssemblyへコンパイルした、ブラウ�
 npm install zenpix-wasm
 ```
 
-npm registry上の公開versionは`1.1.1`です。CIで作成したtarballをnpmへ公開し、registryから再取得したtarballのSHA256一致とbaseline / SIMDのChromium encodeを確認しています。
+このpackageのversionは`1.1.2`です。CIはclean buildしたtarballの必須ファイルを検査し、baseline / SIMDの両方をChromiumでencodeします。npm registry上の現在versionは`npm view zenpix-wasm version`で確認できます。
 
 ## クイックスタート
 
@@ -113,7 +113,7 @@ const encoder = await createAvifEncoder({ variant: "simd", wasmUrl });
 
 ## 1.0.0とのroot import互換
 
-package rootは公開済み1.0.0と同じbaseline版のraw Emscripten factoryです。1.1.1でも次のimportは変更しません。
+package rootは1.0.0と同じbaseline版のraw Emscripten factoryです。1.1.2でも次のimportは変更しません。
 
 ```typescript
 import createAvifModule from "zenpix-wasm";

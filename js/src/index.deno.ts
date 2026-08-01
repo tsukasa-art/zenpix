@@ -16,7 +16,7 @@
  *   The native C allocations are freed before returning via pict_free_buffer.
  *
  * AVIF note:
- *   The 1.0.3 native package candidate statically links its AVIF codec stack.
+ *   Native packages from 1.0.3 onward statically link their AVIF codec stack.
  *   HEIC decode remains optional and loads libheif from the user's system.
  *   encodeAvif() returns null if the build was compiled without AVIF support,
  *   or if quality/speed options are out of range.

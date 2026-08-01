@@ -10,11 +10,11 @@
 | Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
 | Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」は公開packageとCI workflowの対象を示します。
+各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」はpackageとCI workflowの対象を示します。
 
-公開済み1.0.3のoptional packageは、arm64ではRGBA resizeにNEON、x86_64ではSSE2をbuild時に選び、その他はscalarへfallbackします。5環境のworkflowでSIMD版と強制scalar版をbuild・testし、直前のbuild出力をpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査しました。同じtarballをnpmへ公開し、全packageのregistry metadataとintegrity、macOS arm64のregistry再installとCLI実変換を確認済みです。
+1.0.4のoptional packageは、arm64ではRGBA resizeにNEON、x86_64ではSSE2をbuild時に選び、その他はscalarへfallbackします。5環境のworkflowでSIMD版と強制scalar版をbuild・testし、直前のbuild出力をpackしてSHA256一致、runtime依存、Node.js / Bun / Deno API、CLI実変換を検査します。
 
-公開済みmacOS 1.0.3はcodecを静的リンクし、macOS 12.0をdeployment targetにしています。Linux 1.0.3はglibc 2.34以上を対象とし、CIで`GLIBC_2.34`より新しいsymbol参照を拒否します。Windows x64はVC++ Redistributableが必要になる場合があります。
+macOS 1.0.4はcodecを静的リンクし、macOS 12.0をdeployment targetにします。Linux 1.0.4はglibc 2.34以上を対象とし、CIで`GLIBC_2.34`より新しいsymbol参照を拒否します。Windows x64はVC++ Redistributableが必要になる場合があります。
 
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応

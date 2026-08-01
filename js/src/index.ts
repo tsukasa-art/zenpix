@@ -14,7 +14,7 @@
  *   The native C allocations are freed before returning.
  *
  * AVIF note:
- *   The 1.0.3 native package candidate statically links its AVIF codec stack.
+ *   Native packages from 1.0.3 onward statically link their AVIF codec stack.
  *   HEIC decode remains optional and loads libheif from the user's system.
  *   encodeAvif() returns null if the build was compiled without AVIF support,
  *   or if quality/speed options are out of range.
@@ -417,7 +417,7 @@ export function encodeWebP(image: ImageBuffer, options: WebPOptions = {}): Buffe
 /**
  * Encode pixel data as AVIF.
  *
- * The 1.0.3 native package candidate statically links its AVIF codec stack.
+ * Native packages from 1.0.3 onward statically link their AVIF codec stack.
  * Embeds image.icc when present; otherwise signals sRGB color characteristics.
  *
  * Returns null if:
