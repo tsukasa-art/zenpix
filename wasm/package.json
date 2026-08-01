@@ -42,7 +42,7 @@
     "build:simd": "bash ../scripts/build-wasm.sh --simd",
     "build:all": "bash ../scripts/build-wasm.sh && bash ../scripts/build-wasm.sh --simd && npm run build:wrapper",
     "build:wrapper": "esbuild js/index.ts --bundle=false --platform=browser --format=esm --outfile=js/index.js",
-    "prepack": "npm run build:wrapper",
+    "prepack": "npm run build:wrapper && node ../scripts/verify-wasm-dist.mjs",
     "test": "node test.node.mjs"
   },
   "keywords": ["avif", "wasm", "webassembly", "image", "encoder", "browser", "cloudflare-pages"],

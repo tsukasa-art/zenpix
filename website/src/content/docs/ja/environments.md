@@ -9,11 +9,15 @@ description: zenpix の対応 OS・ランタイムと、よくあるエラーの
 
 | ランタイム | macOS arm64 | macOS x64（Intel） | Linux x86_64 | Linux arm64 | Windows x64 |
 |---|:---:|:---:|:---:|:---:|:---:|
-| Node.js 18+ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Bun | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Deno 2.x | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Node.js 18+ | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Bun | 対象 | 対象 | 対象 | 対象 | 対象 |
+| Deno 2.x | 対象 | 対象 | 対象 | 対象 | 対象 |
 
-各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。ビルド環境は一切不要です。
+各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。「対象」はpackageとCI定義の対象を示し、未実走のrelease candidateを検証済みとする印ではありません。
+
+公開済み1.0.2のoptional packageはscalarです。未公開のnative 1.0.3 sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選び、その他はscalarへfallbackします。run `30674867350`は5環境のsource build・testを通過しましたが、以前のlocal tarballはignoredの1.0.2 binaryを再利用していたため配布検証から除外します。新workflowのpacked artifact実走、npm registry上の1.0.3、本番利用は未確認です。
+
+公開済みmacOS 1.0.2にはHomebrew codecへの絶対パス依存とmacOS 15.0以上という既知の問題があります。1.0.3候補はcodecを静的リンクし、macOS 12.0をdeployment targetにします。Linux候補はglibc 2.34以上を対象とし、CIで`GLIBC_2.34`より新しいsymbol参照を拒否します。Windows x64はVC++ Redistributableが必要になる場合があります。
 
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応
@@ -86,7 +90,13 @@ VC++ 再頒布可能パッケージ（x64）が必要な場合があります。
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel
 # → build/libpict.{dylib,so}
+
+# SIMDを無効にした正解基準build
+cmake -S . -B build-scalar -DCMAKE_BUILD_TYPE=Release -DZENPIX_ENABLE_SIMD=OFF
+cmake --build build-scalar --parallel
 ZENPIX_LIB=/path/to/libpict.dylib node your-script.js
 ```
 
 `libpict` の解決順：`ZENPIX_LIB` 環境変数 → `build/libpict.*` → `optionalDependencies`
+
+`ZENPIX_ENABLE_SIMD`は既定で`ON`、`ZENPIX_BUILD_TESTS`と`ZENPIX_MARCH_NATIVE`は既定で`OFF`です。`ZENPIX_MARCH_NATIVE`はローカル測定用であり、配布buildでは有効にしません。

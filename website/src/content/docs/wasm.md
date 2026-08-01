@@ -163,11 +163,13 @@ async function createAvifEncoder(
 
 ## Bundle size
 
+The following sizes are from the checked-in demo artifacts, reproduced by the 2026-08-01 local clean build with Emscripten 5.0.7. Compiler changes can change the exact size.
+
 | File | raw | gzip |
 |------|-----|------|
-| `avif.wasm` (baseline) | 3.4 MB | **1.1 MB** |
-| `avif.simd.wasm` | 3.4 MB | **1.1 MB** |
-| `avif.js` | 60 KB | — |
+| `avif.wasm` (baseline) | 3.35 MiB | 1.06 MiB |
+| `avif.simd.wasm` | 5.63 MiB | 1.25 MiB |
+| `avif.js` | 60.8 KiB | — |
 
 ---
 

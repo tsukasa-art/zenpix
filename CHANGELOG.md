@@ -2,7 +2,24 @@
 
 このファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の体裁に近づけ、利用者向けの差分を記録する。
 
-## [Unreleased]
+## [1.0.3] - 未公開
+
+### ネイティブresize SIMD
+
+- scalarの2-pass Lanczos-3を正解基準として残し、RGBAの水平・垂直passにarm64 NEONとx86_64 SSE2の経路を追加した。
+- 1 / 2 / 3 channel、未対応CPU、`ZENPIX_ENABLE_SIMD=OFF`はscalarへfallbackする。公開API / ABIは変更しない。
+- scalar対SIMDのC単体・共有ライブラリFFI・既存RGB / 操作テストを追加した。macOS arm64ではNEON、macOS x64ではRosetta上のSSE2について画素一致を確認した。
+- 先行するGitHub Actions run `30674867350`でmacOS arm64 / x64、Linux arm64 / x64、Windows x64のSIMD・強制scalar build/test、共有ライブラリFFI比較、AVIF roundtrip、バイナリartifact生成が通過した。ただし、このrunは1.0.3の7 tarballと配布依存を検証していない。
+- Apple M4 Proでのローカル測定では、対象RGBA resizeでscalar比約1.08〜1.15倍、decode→resize→AVIF全体で約1.07〜1.13倍だった。RGB fallbackは改善せず、この範囲を一般性能の主張には使用しない。
+
+### 配布再現性
+
+- `vcpkg.json`へbaselineを固定し、5つのnative jobが直前にbuildしたバイナリを対応するoptional packageへ入れてpackするようにした。Gitで無視された既存バイナリはpack入力に使わない。
+- macOS候補はcodec依存を静的リンクし、deployment targetを12.0に固定する。ローカルmacOS arm64では外部codec dylib依存がないこと、`minos 12.0`、Node.js / Bun / Deno API、CLIを確認した。macOS x64を含む5環境は新しいCI実走前のため未確認。
+- native tarballのバイナリSHA、runtime依存、Node.js / Bun / Deno API、CLIを各環境で検査し、最後にroot・5 native・WASMの計7 tarballをversion・必須ファイル・license・SHA256で集約検査するCI定義を追加した。
+- `zenpix-wasm`はclean buildでbaseline / SIMDの4成果物がそろわない限りpackを失敗させ、packed tarballをChromiumでencodeするCI定義を追加した。ローカルではEmscripten 5.0.7のclean build、Nodeテスト、pack、Chromiumで両variantのAVIF encodeを確認した。新しいCI実走、registry再取得、npm公開、本番利用は未確認。
+
+## [1.0.2 / zenpix-wasm 1.1.0] - 2026-07-22
 
 ### zenpix 1.0.2
 
@@ -18,7 +35,7 @@
 - `zenpix-wasm/raw`をbaseline版raw factoryの明示的aliasとして追加した。
 - package metadataとREADMEを現在のESM・browser向け成果物に合わせ、既存の`LICENSE`と`THIRD_PARTY_LICENSES`をtarballへ同梱した。
 
-この更新でroot importをwrapperへ差し替える破壊的変更は行わない。
+この更新でroot importをwrapperへ差し替える破壊的変更は行っていない。
 
 ## [1.0.1] - 2026-05-30
 
@@ -32,7 +49,7 @@
 
 ### 初回リリース
 
-zenpix-c — C で実装した画像変換ライブラリ。以前の Zig 実装からフルリライト。
+zenpix-c — Cで再実装した画像変換ライブラリ。1.0.0では旧Zig版の主要APIとplatform packageを移行した一方、旧版に任意設定で存在したRGBA SIMD経路は移行していなかった。
 
 ### 機能
 

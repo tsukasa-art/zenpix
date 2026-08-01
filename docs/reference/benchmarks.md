@@ -4,6 +4,14 @@ zenpixとSharpの処理時間は、CPU、スレッド数、画像の特徴、解
 
 このページの数値は2026-05-25に実施した過去の測定記録です。測定に使用した画像には再配布できないものが含まれ、`test/fixtures/`と`bench/results/`はGit管理対象外です。そのため、表の数値は第三者がclone直後に再現できる一般性能の根拠ではなく、条件依存の参考値として扱ってください。
 
+## 開発動機と当時のSharp経路
+
+zenpixを作る前のサイトでは、2 vCPU・2 GB RAMのVPS上でSharpによるAVIF変換が実用時間内に完了しませんでした。これは当時の運用上の事実ですが、「Sharpが常に全コアを使い切る」「Sharpでは低スペック環境の変換が完了しない」という一般的な性質には広げません。
+
+当時のアップロード実装（サイト側commit `6c182e5`から`46ddb63`の直前まで）は、入力を事前縮小せず、同じHTTPリクエスト内でフル解像度WebP q85、フル解像度AVIF q70、最大4096pxの原形式画像を順に生成し、R2へのupload完了まで待つ構成でした。圧縮後ファイルサイズには20 MB上限がありましたが、画素数上限とencodeの同時実行制限はなく、nginxの`proxy_read_timeout`は60秒でした。
+
+2026-07-31に4093×2894の同一fixtureでこの3出力を再現すると、M4 Pro上の2 vCPU・2 GB Linux arm64コンテナでNode.js / Bunとも約7.6秒、peak memoryは約0.5〜0.6 GiBでした。2026-08-01に元の実VPSでも再測定すると計算部分だけで22.13〜30.46秒かかり、最大RSSは499〜523 MiBでした。OOMや2コア占有は再現せず、主な遅延はフル解像度AVIFでした。したがって、フル解像度AVIFを含む3出力とnetwork uploadをHTTP request内で同期実行したことが、当時の処理時間予算に合わなかった最有力原因です。失敗request logは残っていないため、timeoutか手動中断かは断定しません。
+
 ## 測定方法
 
 - パイプライン: PNG decode → resize → AVIF encode
@@ -61,9 +69,53 @@ zenpix 1.0.0、シングルスレッド、2026-05-25測定。
 
 ## 画質設定について
 
-zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。実際の出力はcodec実装・versionにも依存します。Sharpのデフォルト設定とはクロマ形式や出力サイズが異なるため、同じ`quality=60`を同一画質・同一条件とはみなしません。
+zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをlosslessに設定します。SharpのAVIF既定も4:4:4ですが、encoder、codec version、quality scale、出力サイズは同一ではありません。そのため、同じ`quality=60`を同一画質・同一条件とはみなしません。
 
-比較画像生成スクリプト[`bench/quality-compare.ts`](../../bench/quality-compare.ts)は出力ファイルとサイズを確認するためのもので、SSIM / PSNRなどの客観評価は行いません。生成画像は設定差を目視する参考に限定してください。
+比較画像生成スクリプト[`bench/quality-compare.ts`](../../bench/quality-compare.ts)は、共通のリサイズ済みPNGを基準に、各qualityの出力サイズ、RGB PSNR、RGB MAEを記録し、ファイルサイズ差が5%以内の組を抽出します。PSNRだけで知覚品質を代表できないため、目視結果と併用してください。
+
+2026-07-31に明色風景fixtureを960px幅へリサイズして比較したところ、同じ`quality=60`ではzenpixの方がRGB PSNRは0.624 dB高い一方、ファイルサイズも37.8%大きくなりました。ほぼ同じサイズの組では、Sharp q57対zenpix q45でSharpが0.511 dB、Sharp q72対zenpix q60でSharpが0.499 dB高い結果でした。したがって、このfixtureの同一quality比較でzenpixが細部を多く残したことは、一般的な圧縮効率の優位性を意味しません。
+
+## 未公開source branchのscalar対SIMD CI測定
+
+GitHub Actions run `30674226376`で、同じsourceからSIMD版と強制scalar版をCMake Releaseのportable baselineでbuildしました。`bench/resize-simd.ts`が生成する決定的なgradient/checker RGBA PNG（1920×1080）を使い、各trialはwarm-up 3回、scalar / SIMDを交互に15組、中央値を使用し、全体を3回実行しました。
+
+| architecture / backend | 対象 | threads | 3回のmedian speedup範囲 |
+|---|---|---:|---:|
+| macOS arm64 / NEON | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.117〜1.146× |
+| macOS arm64 / NEON | raw RGBA resize 1920×1080 → 960×540 | 3 | 1.082〜1.098× |
+| macOS arm64 / NEON | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.113〜1.120× |
+| macOS arm64 / NEON | RGBA PNG decode → resize → AVIF（q60 / speed10） | 3 | 1.074〜1.082× |
+| macOS arm64 / scalar fallback | raw RGB resize | 3 | 0.996〜1.002× |
+| macOS x64 / SSE2 | raw RGBA resize 1920×1080 → 960×540 | 1 | 1.133〜1.148× |
+| macOS x64 / SSE2 | raw RGBA resize 1920×1080 → 960×540 | 4 | 1.095〜1.131× |
+| macOS x64 / SSE2 | RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.091〜1.122× |
+| macOS x64 / SSE2 | RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.080〜1.104× |
+| macOS x64 / scalar fallback | raw RGB resize | 4 | 0.964〜0.998× |
+
+RGBAではNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runではmacOS arm64 / x64、Linux arm64 / x64、Windows x64の正確性・FFI・AVIF testも通過しています。ただし性能値はこのfixtureとrunnerに限り、zenpix全体が常に高速化するという主張には使用しません。
+
+## 2 vCPU・2 GB制限下の補助測定
+
+2026-07-31にApple M4 Pro上のOrbStack Linux arm64コンテナへ2 vCPU、2 GB RAM、swapなしの上限を設定し、Node.js 20.19.2でPNG decode → cover 1920×1080 → AVIF encodeを測定しました。各試行はwarm-up 1回、計測5回の中央値とし、試行全体を3回実行しました。Sharp 0.34.5はこの環境で既定concurrencyが1でした。
+
+出力サイズを近づけた組の3試行中央値は次のとおりです。peak memoryはコンテナcgroup全体の値です。
+
+| 対象 | 出力サイズ | 処理時間 | peak memory | 平均CPU使用量 |
+|---|---:|---:|---:|---:|
+| Sharp q60 | 16,446 bytes | 1,858 ms | 270 MiB | 1.02 cores |
+| zenpix q52 / 1 thread | 16,414 bytes | 1,578 ms | 584 MiB | 1.02 cores |
+| Sharp q67 | 20,027 bytes | 1,985 ms | 231 MiB | 1.02 cores |
+| zenpix q60 / 1 thread | 20,297 bytes | 1,649 ms | 587 MiB | 1.02 cores |
+
+この条件ではzenpixの処理時間が約15〜17%短い一方、peak memoryは約2.2〜2.5倍でした。両方とも2 GB内で完走し、Sharpが2コアを使い切る挙動や顕著なスケジューリング遅延は再現しませんでした。「Sharpより低メモリ」「Sharpが常に全コアを占有する」という主張には使用しません。
+
+## 実VPSでのSharp再測定
+
+2026-08-01に、開発動機になった実VPS（x86_64、2 vCPU、RAM 1.9 GiB、swap 2 GiB）へ接続し、現在残っているSharp 0.34.5 / libvips 8.17.3で再測定しました。Sharpの既定concurrencyは1でした。4093×2894 RGBA PNGをcover 1920×1080、AVIF q60 / speed6へ変換する現在の比較条件は5.25秒、最大RSS 190 MiBで完走しました。
+
+Git履歴上の2026-03-24以前のupload routeは、同じ入力からフル解像度WebP q85、フル解像度AVIF q70、4096px上限の原形式を同期・逐次生成し、その都度R2へuploadしていました。この計算部分を正確に再現すると、VPSに残っていた4.53 MB fixtureでは22.13秒・最大RSS 523 MiB、別の2.96 MB fixtureでは30.46秒・最大RSS 499 MiBでした。4.53 MB fixtureを段階分離するとWebPは1.65秒、AVIFは15.38秒、原形式は0.59秒で、主な遅延はフル解像度AVIF encodeでした。処理はほぼ1 CPU coreを使い、OOM killやprocess内swap-outは再現しませんでしたが、一方の連続測定ではmemory pressureとsystem swap使用量の増加が観測されました。
+
+したがって、当時の「完了しなかった」現象はSharpが2コアを使い切ったためではなく、フル解像度AVIFを含む3出力とnetwork uploadをHTTP request内で同期実行したため、20〜30秒以上応答しなかったことが最有力です。当時のnginx設定は`proxy_read_timeout 60s`でした。ただし当時の失敗request logやOOM logは残っていないため、client / proxy timeoutと利用者による中断のどちらだったかまでは断定しません。
 
 ## 手元で測定する
 
@@ -85,6 +137,10 @@ npm run bench
 BENCH_FIXTURES=bench_input npm run bench
 AVIF_THREADS=4 npm run bench:threads
 bun bench/quality-compare.ts
+bench/run-low-resource.sh
+
+# 2026年3月のサイト側Sharp 3出力経路を再現（R2通信は含まない）
+BENCH_ENGINES=sharp-historical BENCH_WARMUP_N=0 BENCH_MEASURE_N=1 bench/run-low-resource.sh
 ```
 
 結果はGit管理対象外の`bench/results/`へ出力されます。数値を公開する場合は、OS、CPU、メモリ、zenpix / Sharp / codecのバージョン、スレッド数、fixtureの配布可否を併記してください。

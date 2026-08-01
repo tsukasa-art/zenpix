@@ -1,8 +1,11 @@
 Third-Party Licenses
 ====================
 
-zenpix statically links or bundles the following third-party libraries.
-Their respective license texts are reproduced below as required by each license.
+zenpix-wasm statically links libavif 1.4.1, libaom 3.12.1, and the libyuv
+subset vendored by that libavif revision from the pinned Git submodules.
+Their notices are sections 5, 6, and 9 below. The remaining sections are
+retained from the shared zenpix notice for reference, but those libraries are
+not linked into the WASM artifact.
 
 --------------------------------------------------------------------------------
 1. libjpeg-turbo
@@ -205,3 +208,25 @@ Their respective license texts are reproduced below as required by each license.
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
+
+--------------------------------------------------------------------------------
+9. libyuv (subset vendored by libavif 1.4.1)
+   Source:  https://chromium.googlesource.com/libyuv/libyuv
+   License: BSD 3-Clause
+
+   Copyright 2011 The LibYuv Project Authors. All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+
+   * Redistributions of source code must retain the above copyright notice,
+     this list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+   * Neither the name of Google nor the names of its contributors may be used
+     to endorse or promote products derived from this software without specific
+     prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+   AND ANY EXPRESS OR IMPLIED WARRANTIES ARE DISCLAIMED.

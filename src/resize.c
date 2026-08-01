@@ -1,5 +1,5 @@
 /*
- * resize.c — Lanczos-3 image resize (scalar, 2-pass separable filter)
+ * resize.c — Lanczos-3 image resize (scalar reference + RGBA SIMD dispatch)
  *
  * Algorithm: horizontal pass (u8 → f32 intermediate) then vertical pass (f32 → u8).
  * Supports ch = 1/2/3/4, arbitrary src/dst dimensions, optional pthreads V-pass.
@@ -9,6 +9,8 @@
  */
 
 #include "pict_resize.h"
+#define PICT_RESIZE_SIMD_IMPLEMENTATION 1
+#include "resize_simd.h"
 
 #ifdef _WIN32
 #  define _USE_MATH_DEFINES
@@ -17,6 +19,48 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Keep architecture-specific intrinsics private to this translation unit. */
+#if defined(PICT_SIMD_NEON)
+#  include "resize_simd_neon.c"
+#elif defined(PICT_SIMD_SSE2)
+#  include "resize_simd_sse2.c"
+#endif
+
+#ifdef PICT_RESIZE_TESTING
+#  ifdef _WIN32
+#    include <windows.h>
+static volatile LONG64 g_simd_h_rows;
+static volatile LONG64 g_simd_v_rows;
+void pict_resize_test_reset_simd_counts(void) {
+    InterlockedExchange64(&g_simd_h_rows, 0);
+    InterlockedExchange64(&g_simd_v_rows, 0);
+}
+uint64_t pict_resize_test_simd_h_rows(void) {
+    return (uint64_t)InterlockedCompareExchange64(&g_simd_h_rows, 0, 0);
+}
+uint64_t pict_resize_test_simd_v_rows(void) {
+    return (uint64_t)InterlockedCompareExchange64(&g_simd_v_rows, 0, 0);
+}
+#    define PICT_RECORD_SIMD_H() InterlockedIncrement64(&g_simd_h_rows)
+#    define PICT_RECORD_SIMD_V() InterlockedIncrement64(&g_simd_v_rows)
+#  else
+#    include <stdatomic.h>
+static _Atomic uint64_t g_simd_h_rows;
+static _Atomic uint64_t g_simd_v_rows;
+void pict_resize_test_reset_simd_counts(void) {
+    atomic_store(&g_simd_h_rows, 0);
+    atomic_store(&g_simd_v_rows, 0);
+}
+uint64_t pict_resize_test_simd_h_rows(void) { return atomic_load(&g_simd_h_rows); }
+uint64_t pict_resize_test_simd_v_rows(void) { return atomic_load(&g_simd_v_rows); }
+#    define PICT_RECORD_SIMD_H() atomic_fetch_add(&g_simd_h_rows, 1)
+#    define PICT_RECORD_SIMD_V() atomic_fetch_add(&g_simd_v_rows, 1)
+#  endif
+#else
+#  define PICT_RECORD_SIMD_H() ((void)0)
+#  define PICT_RECORD_SIMD_V() ((void)0)
+#endif
 
 #ifdef __APPLE__
 #  include <sys/sysctl.h>
@@ -56,7 +100,7 @@ static float lanczos_kernel(float x) {
 
 /* ── H-pass: one src row (u8) → one f32 row ─────────────────────────────── */
 
-static void h_pass_row(
+static void h_pass_row_scalar(
     const uint8_t *src_row, float *out_row,
     uint32_t src_w, uint32_t dst_w, int ch, float scale_x)
 {
@@ -85,7 +129,7 @@ static void h_pass_row(
 
 /* ── V-pass: one dst row from f32 intermediate buffer ────────────────────── */
 
-static void v_pass_row(
+static void v_pass_row_scalar(
     const float *inter,   /* sh × row_stride f32 */
     uint8_t *dst_row,
     uint32_t dy, uint32_t src_h, uint32_t dst_w, int ch,
@@ -131,15 +175,28 @@ typedef struct {
     float        scale_y;
     float        support_y;
     size_t       row_stride;
+    int          use_simd;
 } VPassChunk;
 
 static void *v_pass_chunk_run(void *arg) {
     const VPassChunk *c = (const VPassChunk *)arg;
     size_t out_stride = (size_t)c->dst_w * (size_t)c->ch;
+#if PICT_SIMD_AVAILABLE
+    if (c->use_simd) {
+        for (uint32_t dy = c->dy_start; dy < c->dy_end; dy++) {
+            pict_v_pass_row_rgba_simd(
+                c->inter, c->dst + (size_t)dy * out_stride,
+                dy, c->src_h, c->dst_w,
+                c->scale_y, c->support_y, c->row_stride);
+            PICT_RECORD_SIMD_V();
+        }
+        return NULL;
+    }
+#endif
     for (uint32_t dy = c->dy_start; dy < c->dy_end; dy++) {
-        v_pass_row(c->inter, c->dst + (size_t)dy * out_stride,
-                   dy, c->src_h, c->dst_w, c->ch,
-                   c->scale_y, c->support_y, c->row_stride);
+        v_pass_row_scalar(c->inter, c->dst + (size_t)dy * out_stride,
+                          dy, c->src_h, c->dst_w, c->ch,
+                          c->scale_y, c->support_y, c->row_stride);
     }
     return NULL;
 }
@@ -162,10 +219,10 @@ static uint32_t cpu_count(void) {
 
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
-int pict_resize_lanczos3(
+static int pict_resize_lanczos3_impl(
     const uint8_t *src, uint32_t src_w, uint32_t src_h,
     uint8_t       *dst, uint32_t dst_w, uint32_t dst_h,
-    int ch, uint32_t n_threads)
+    int ch, uint32_t n_threads, int force_scalar)
 {
     if (!src || !dst) return -1;
     if (src_w == 0 || src_h == 0 || dst_w == 0 || dst_h == 0) return -1;
@@ -174,16 +231,30 @@ int pict_resize_lanczos3(
     float scale_x = (float)dst_w / (float)src_w;
     float scale_y = (float)dst_h / (float)src_h;
     float support_y = 3.0f / (scale_y < 1.0f ? scale_y : 1.0f);
+    int use_simd = PICT_SIMD_AVAILABLE && ch == 4 && !force_scalar;
 
     size_t row_stride = (size_t)dst_w * (size_t)ch;
     float *inter = (float *)malloc((size_t)src_h * row_stride * sizeof(float));
     if (!inter) return -2;
 
-    /* H-pass */
-    for (uint32_t y = 0; y < src_h; y++) {
-        h_pass_row(src + (size_t)y * (size_t)src_w * (size_t)ch,
-                   inter + (size_t)y * row_stride,
-                   src_w, dst_w, ch, scale_x);
+    /* H-pass: dispatch once per image so scalar fallback has no per-row branch. */
+#if PICT_SIMD_AVAILABLE
+    if (use_simd) {
+        for (uint32_t y = 0; y < src_h; y++) {
+            pict_h_pass_row_rgba_simd(
+                src + (size_t)y * (size_t)src_w * 4u,
+                inter + (size_t)y * row_stride,
+                src_w, dst_w, scale_x);
+            PICT_RECORD_SIMD_H();
+        }
+    } else
+#endif
+    {
+        for (uint32_t y = 0; y < src_h; y++) {
+            h_pass_row_scalar(src + (size_t)y * (size_t)src_w * (size_t)ch,
+                              inter + (size_t)y * row_stride,
+                              src_w, dst_w, ch, scale_x);
+        }
     }
 
     /* V-pass */
@@ -192,10 +263,23 @@ int pict_resize_lanczos3(
     if (actual_threads <= 1 || dst_h < 64) {
         /* single-thread */
         size_t out_stride = (size_t)dst_w * (size_t)ch;
-        for (uint32_t dy = 0; dy < dst_h; dy++) {
-            v_pass_row(inter, dst + (size_t)dy * out_stride,
-                       dy, src_h, dst_w, ch,
-                       scale_y, support_y, row_stride);
+#if PICT_SIMD_AVAILABLE
+        if (use_simd) {
+            for (uint32_t dy = 0; dy < dst_h; dy++) {
+                pict_v_pass_row_rgba_simd(
+                    inter, dst + (size_t)dy * out_stride,
+                    dy, src_h, dst_w,
+                    scale_y, support_y, row_stride);
+                PICT_RECORD_SIMD_V();
+            }
+        } else
+#endif
+        {
+            for (uint32_t dy = 0; dy < dst_h; dy++) {
+                v_pass_row_scalar(inter, dst + (size_t)dy * out_stride,
+                                  dy, src_h, dst_w, ch,
+                                  scale_y, support_y, row_stride);
+            }
         }
     } else {
         VPassChunk    *chunks  = (VPassChunk    *)malloc(actual_threads * sizeof(VPassChunk));
@@ -216,6 +300,7 @@ int pict_resize_lanczos3(
                 .scale_y    = scale_y,
                 .support_y  = support_y,
                 .row_stride = row_stride,
+                .use_simd   = use_simd,
             };
         }
         for (uint32_t i = 0; i + 1 < actual_threads; i++)
@@ -230,3 +315,23 @@ int pict_resize_lanczos3(
     free(inter);
     return 0;
 }
+
+int pict_resize_lanczos3(
+    const uint8_t *src, uint32_t src_w, uint32_t src_h,
+    uint8_t       *dst, uint32_t dst_w, uint32_t dst_h,
+    int ch, uint32_t n_threads)
+{
+    return pict_resize_lanczos3_impl(
+        src, src_w, src_h, dst, dst_w, dst_h, ch, n_threads, 0);
+}
+
+#ifdef PICT_RESIZE_TESTING
+int pict_resize_lanczos3_test_mode(
+    const uint8_t *src, uint32_t src_w, uint32_t src_h,
+    uint8_t       *dst, uint32_t dst_w, uint32_t dst_h,
+    int ch, uint32_t n_threads, int force_scalar)
+{
+    return pict_resize_lanczos3_impl(
+        src, src_w, src_h, dst, dst_w, dst_h, ch, n_threads, force_scalar);
+}
+#endif
