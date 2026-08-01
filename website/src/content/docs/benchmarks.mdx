@@ -40,19 +40,24 @@ The zenpix AVIF implementation requests YUV 4:4:4 from libavif and sets its alph
 
 On the bright-landscape fixture measured on 2026-07-31, zenpix at q60 had 0.624 dB higher RGB PSNR but also produced a 37.8% larger file. In two near-size-matched pairs, Sharp had about 0.5 dB higher RGB PSNR. More retained detail at the same numeric quality is therefore not treated as evidence of generally better compression efficiency.
 
-## Unpublished source: scalar vs SIMD
+## Unpublished source branch: scalar vs SIMD in CI
 
-On 2026-07-31, the unpublished RGBA NEON path was compared with a forced-scalar build from the same source on an Apple M4 Pro running macOS arm64. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs; the complete measurement was repeated three times.
+GitHub Actions run `30674226376` built the SIMD and forced-scalar libraries from the same source with a portable CMake Release baseline. `bench/resize-simd.ts` generates a deterministic 1920×1080 gradient/checker RGBA PNG. Each trial used three warm-ups and 15 alternating scalar/SIMD pairs, and the complete measurement was repeated three times.
 
-| Workload | Threads | Range of median speedups across three trials |
-|---|---:|---:|
-| Raw RGBA resize, 1920×1080 → 960×540 | 1 | 1.136–1.149× |
-| Raw RGBA resize, 1920×1080 → 960×540 | 4 | 1.082–1.091× |
-| RGBA PNG decode → resize → AVIF (q60 / speed10) | 1 | 1.114–1.125× |
-| RGBA PNG decode → resize → AVIF (q60 / speed10) | 4 | 1.070–1.081× |
-| Raw RGB scalar fallback | 4 | 0.984–0.986× |
+| Architecture / backend | Workload | Threads | Median speedup range |
+|---|---|---:|---:|
+| macOS arm64 / NEON | Raw RGBA resize | 1 | 1.117–1.146× |
+| macOS arm64 / NEON | Raw RGBA resize | 3 | 1.082–1.098× |
+| macOS arm64 / NEON | PNG → resize → AVIF | 1 | 1.113–1.120× |
+| macOS arm64 / NEON | PNG → resize → AVIF | 3 | 1.074–1.082× |
+| macOS arm64 / scalar fallback | Raw RGB resize | 3 | 0.996–1.002× |
+| macOS x64 / SSE2 | Raw RGBA resize | 1 | 1.133–1.148× |
+| macOS x64 / SSE2 | Raw RGBA resize | 4 | 1.095–1.131× |
+| macOS x64 / SSE2 | PNG → resize → AVIF | 1 | 1.091–1.122× |
+| macOS x64 / SSE2 | PNG → resize → AVIF | 4 | 1.080–1.104× |
+| macOS x64 / scalar fallback | Raw RGB resize | 4 | 0.964–0.998× |
 
-The input fixture is not published in a redistributable form. RGBA improved in this environment; RGB is outside the SIMD path and did not improve. x86_64 SSE2 correctness was checked under Rosetta, but native Intel performance remains unverified. These results are not evidence that every zenpix workload is faster.
+All three trials improved for RGBA on both NEON and SSE2; RGB is outside the SIMD path and did not improve. The same run passed correctness, FFI, and AVIF tests on macOS arm64/x64, Linux arm64/x64, and Windows x64. These performance numbers still apply only to this fixture and these runners.
 
 ## Supplementary 2-vCPU / 2-GB measurement
 

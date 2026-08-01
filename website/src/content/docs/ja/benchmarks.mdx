@@ -40,19 +40,24 @@ zenpixのAVIF encode実装はlibavifへYUV 4:4:4を指定し、alpha qualityをl
 
 2026-07-31の明色風景fixtureでは、同じq60でzenpixのRGB PSNRが0.624 dB高い一方、出力も37.8%大きくなりました。ほぼ同じサイズの2組ではSharpのRGB PSNRが約0.5 dB高く、同一qualityで細部が残ることを一般的な圧縮効率の優位性とは扱えません。
 
-## 未公開sourceのscalar対SIMD測定
+## 未公開source branchのscalar対SIMD CI測定
 
-2026-07-31にApple M4 Pro / macOS arm64で、未公開のRGBA用NEONと強制scalarを同じsourceからbuildして比較しました。warm-up 3回、scalar / SIMDを交互に15組、測定全体を3回実行しています。
+GitHub Actions run `30674226376`で、同じsourceからSIMD版と強制scalar版をportable CMake Release baselineでbuildしました。`bench/resize-simd.ts`が決定的なgradient/checker RGBA PNG（1920×1080）を生成し、各trialはwarm-up 3回、scalar / SIMDを交互に15組、全体を3回実行しています。
 
-| 対象 | threads | 3回のmedian speedup範囲 |
-|---|---:|---:|
-| raw RGBA resize 1920×1080 → 960×540 | 1 | 1.136〜1.149× |
-| raw RGBA resize 1920×1080 → 960×540 | 4 | 1.082〜1.091× |
-| RGBA PNG decode → resize → AVIF（q60 / speed10） | 1 | 1.114〜1.125× |
-| RGBA PNG decode → resize → AVIF（q60 / speed10） | 4 | 1.070〜1.081× |
-| raw RGB scalar fallback | 4 | 0.984〜0.986× |
+| architecture / backend | 対象 | threads | median speedup範囲 |
+|---|---|---:|---:|
+| macOS arm64 / NEON | raw RGBA resize | 1 | 1.117〜1.146× |
+| macOS arm64 / NEON | raw RGBA resize | 3 | 1.082〜1.098× |
+| macOS arm64 / NEON | PNG → resize → AVIF | 1 | 1.113〜1.120× |
+| macOS arm64 / NEON | PNG → resize → AVIF | 3 | 1.074〜1.082× |
+| macOS arm64 / scalar fallback | raw RGB resize | 3 | 0.996〜1.002× |
+| macOS x64 / SSE2 | raw RGBA resize | 1 | 1.133〜1.148× |
+| macOS x64 / SSE2 | raw RGBA resize | 4 | 1.095〜1.131× |
+| macOS x64 / SSE2 | PNG → resize → AVIF | 1 | 1.091〜1.122× |
+| macOS x64 / SSE2 | PNG → resize → AVIF | 4 | 1.080〜1.104× |
+| macOS x64 / scalar fallback | raw RGB resize | 4 | 0.964〜0.998× |
 
-入力fixtureは再配布可能な形で公開していません。この環境のRGBAでは改善しましたが、RGBはSIMD対象外で改善しません。x86_64はRosetta上でSSE2の正確性のみ確認し、Intel実機の性能は未確認です。この結果をzenpix全体の一般的な高速化主張には使用しません。
+RGBAはNEON / SSE2の両方で3 trialすべて改善し、RGBはSIMD対象外で改善しませんでした。同runでは5対象環境の正確性・FFI・AVIF testも通過しています。性能値はこのfixtureとrunnerに限り、一般的な高速化主張には使用しません。
 
 ## 2 vCPU・2 GB制限下の補助測定
 

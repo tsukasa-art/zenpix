@@ -15,7 +15,7 @@ description: zenpix の対応 OS・ランタイムと、よくあるエラーの
 
 各プラットフォームのバイナリは optional パッケージ（`zenpix-darwin-arm64` など）として自動選択されます。ビルド環境は一切不要です。
 
-公開済み1.0.2のoptional packageはscalarです。未公開の次期sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選びます。その他のchannel / CPUはscalarへfallbackします。5環境のworkflow定義はありますが、対象commitでのActions実走と配布物確認はまだ完了していません。
+公開済み1.0.2のoptional packageはscalarです。未公開の次期sourceでは、arm64はRGBA resizeにNEON、x86_64はSSE2をbuild時に選びます。その他のchannel / CPUはscalarへfallbackします。GitHub Actions run `30674226376`で5環境のbuild・testとartifact生成は通過しましたが、npm packed artifact、npm配布物、本番利用は未確認です。
 
 **非対応環境**:
 - Alpine Linux（musl）: glibc 前提のため非対応

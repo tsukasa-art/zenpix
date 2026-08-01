@@ -162,7 +162,7 @@ try {
     );
   }
   pairedBenchmark(
-    "raw RGB scalar fallback 1920x1080 -> 960x540 threads=4",
+    `raw RGB scalar fallback 1920x1080 -> 960x540 threads=${Math.min(4, cpus().length)}`,
     () => rawResize(scalar, rgb, 3, Math.min(4, cpus().length)),
     () => rawResize(simd, rgb, 3, Math.min(4, cpus().length)),
   );
