@@ -1,4 +1,9 @@
-# zenpix
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-dark@2x.png">
+    <img alt="zenpix" src="assets/brand/lockup-light@2x.png" height="56">
+  </picture>
+</h1>
 
 Node.js / Bun / Deno から、C ネイティブの画像処理エンジンを TypeScript API または CLI 経由で利用するためのライブラリです。JPEG / PNG / WebP / AVIF / GIF / HEIC をデコードし、Lanczos-3 リサイズを経て WebP / AVIF / PNG にエンコードします。
 

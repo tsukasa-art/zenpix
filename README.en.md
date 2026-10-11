@@ -1,4 +1,9 @@
-# zenpix
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-dark@2x.png">
+    <img alt="zenpix" src="assets/brand/lockup-light@2x.png" height="56">
+  </picture>
+</h1>
 
 zenpix exposes a native C image-processing engine through a TypeScript API and CLI for Node.js, Bun, and Deno. It decodes JPEG / PNG / WebP / AVIF / GIF / HEIC, applies Lanczos-3 resizing, and encodes WebP / AVIF / PNG.
 

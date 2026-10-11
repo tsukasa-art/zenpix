@@ -1,49 +1,53 @@
 /* ============================================
-   zenpix × Starlight — dark-only cyan theme
+   zenpix × Starlight — dark-only theme in the logo colors
+   空色 #AFD2F9・制服の紺 #637191・生成り #f4efe4・地の紺 #0f2233
    ============================================ */
 
 :root,
 :root[data-theme='dark'],
 :root[data-theme='light'] {
-  /* Accent: cyan (pixel blocks) */
-  --sl-color-accent-low: rgba(34, 211, 238, 0.12);
-  --sl-color-accent: #22d3ee;
-  --sl-color-accent-high: #e0f9fd;
+  /* Logo colors */
+  --zp-sky: #afd2f9;
+  --zp-sky-rgb: 175, 210, 249;
+  --zp-pale: #d4e7fd;
+  --zp-cream: #f4efe4;
+  --zp-bg-rgb: 15, 34, 51;
+
+  /* Accent: sky (the picture in the logo) */
+  --sl-color-accent-low: rgba(var(--zp-sky-rgb), 0.12);
+  --sl-color-accent: var(--zp-sky);
+  --sl-color-accent-high: var(--zp-pale);
 
   /* Gray scale */
-  --sl-color-white: #f0f9ff;
-  --sl-color-gray-1: #e0f2fe;
-  --sl-color-gray-2: #bae6fd;
-  --sl-color-gray-3: #7dd3fc;
-  --sl-color-gray-4: #4a7fa0;
-  --sl-color-gray-5: #1e3a4f;
-  --sl-color-gray-6: #112233;
-  --sl-color-black: #0b1929;
+  --sl-color-white: #f4f7fb;
+  --sl-color-gray-1: #dfe8f3;
+  --sl-color-gray-2: #c3d0de;
+  --sl-color-gray-3: #9fb0c4;
+  --sl-color-gray-4: #6a7f96;
+  --sl-color-gray-5: #2a4a63;
+  --sl-color-gray-6: #13283a;
+  --sl-color-black: #0f2233;
 
-  /* Surfaces — dark navy matching logo */
-  --sl-color-bg: #0b1929;
-  --sl-color-bg-nav: rgba(11, 25, 41, 0.95);
-  --sl-color-bg-sidebar: #0d1f33;
-  --sl-color-bg-inline-code: rgba(34, 211, 238, 0.1);
+  /* Surfaces — the navy of the icon tile and banner */
+  --sl-color-bg: #0f2233;
+  --sl-color-bg-nav: rgba(var(--zp-bg-rgb), 0.95);
+  --sl-color-bg-sidebar: #112739;
+  --sl-color-bg-inline-code: rgba(var(--zp-sky-rgb), 0.1);
 
   /* Text */
-  --sl-color-text: #cbd5e1;
-  --sl-color-text-accent: #22d3ee;
-  --sl-color-text-invert: #0b1929;
+  --sl-color-text: #d3dce6;
+  --sl-color-text-accent: var(--zp-sky);
+  --sl-color-text-invert: #0f2233;
 
   /* Hairlines */
-  --sl-color-hairline-light: rgba(34, 211, 238, 0.06);
-  --sl-color-hairline: rgba(34, 211, 238, 0.15);
-  --sl-color-hairline-shade: rgba(34, 211, 238, 0.25);
-
-  /* Gold secondary (zen circle) */
-  --zp-gold: #c5a059;
-  --zp-gold-low: rgba(197, 160, 89, 0.12);
+  --sl-color-hairline-light: rgba(var(--zp-sky-rgb), 0.06);
+  --sl-color-hairline: rgba(var(--zp-sky-rgb), 0.15);
+  --sl-color-hairline-shade: rgba(var(--zp-sky-rgb), 0.25);
 
   /* Asides */
-  --sl-color-blue-low: rgba(34, 211, 238, 0.1);
-  --sl-color-blue: #22d3ee;
-  --sl-color-blue-high: #e0f9fd;
+  --sl-color-blue-low: rgba(var(--zp-sky-rgb), 0.1);
+  --sl-color-blue: var(--zp-sky);
+  --sl-color-blue-high: var(--zp-pale);
 
   --sl-color-green-low: rgba(74, 186, 140, 0.12);
   --sl-color-green: #4aba8c;
@@ -71,8 +75,8 @@ starlight-theme-select {
 
 /* ---- Header ---- */
 header.header {
-  background: rgba(11, 25, 41, 0.92) !important;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.15) !important;
+  background: rgba(var(--zp-bg-rgb), 0.92) !important;
+  border-bottom: 1px solid rgba(var(--zp-sky-rgb), 0.15) !important;
   backdrop-filter: blur(20px);
 }
 
@@ -95,11 +99,10 @@ header.header {
 }
 
 nav.sidebar a[aria-current='page'] {
-  background: rgba(34, 211, 238, 0.18) !important;
-  color: #22d3ee !important;
-  border-left: 3px solid #22d3ee !important;
+  background: rgba(var(--zp-sky-rgb), 0.18) !important;
+  color: var(--zp-sky) !important;
+  border-left: 3px solid var(--zp-sky) !important;
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
 }
 
 /* ---- Right TOC ---- */
@@ -112,9 +115,9 @@ starlight-toc a {
 starlight-toc a[aria-current='true'] {
   color: #ffffff !important;
   font-weight: 700 !important;
-  border-left: 2px solid #22d3ee !important;
+  border-left: 2px solid var(--zp-sky) !important;
   padding-left: 0.5rem;
-  background: rgba(34, 211, 238, 0.08);
+  background: rgba(var(--zp-sky-rgb), 0.08);
   border-radius: 0 4px 4px 0;
 }
 
@@ -243,17 +246,17 @@ starlight-toc a[aria-current='true'] {
 }
 
 .sl-markdown-content h1 {
-  color: var(--sl-color-accent);
+  color: var(--zp-cream);
 }
 
 .sl-markdown-content h2 {
-  color: var(--zp-gold);
+  color: var(--sl-color-accent);
 }
 
 .sl-markdown-content a {
   color: var(--sl-color-accent);
   text-decoration: underline;
-  text-decoration-color: rgba(34, 211, 238, 0.4);
+  text-decoration-color: rgba(var(--zp-sky-rgb), 0.4);
   text-underline-offset: 3px;
 }
 
@@ -263,15 +266,15 @@ starlight-toc a[aria-current='true'] {
 
 /* ---- Code blocks ---- */
 .expressive-code .frame {
-  border: 1px solid rgba(34, 211, 238, 0.18) !important;
+  border: 1px solid rgba(var(--zp-sky-rgb), 0.18) !important;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .expressive-code .frame .header {
-  background: rgba(11, 25, 41, 0.95) !important;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.12) !important;
+  background: rgba(var(--zp-bg-rgb), 0.95) !important;
+  border-bottom: 1px solid rgba(var(--zp-sky-rgb), 0.12) !important;
 }
 
 .expressive-code .frame .title:empty {
@@ -279,7 +282,7 @@ starlight-toc a[aria-current='true'] {
 }
 
 .expressive-code .frame .title {
-  color: rgba(34, 211, 238, 0.7) !important;
+  color: rgba(var(--zp-sky-rgb), 0.7) !important;
   background: transparent !important;
   font-family: var(--sl-font-mono);
   font-size: 0.82rem;
@@ -296,9 +299,9 @@ starlight-toc a[aria-current='true'] {
 
 /* ---- Inline code ---- */
 :not(pre) > code {
-  background: rgba(34, 211, 238, 0.1) !important;
-  color: #67e8f9 !important;
-  border: 1px solid rgba(34, 211, 238, 0.22) !important;
+  background: rgba(var(--zp-sky-rgb), 0.1) !important;
+  color: var(--zp-pale) !important;
+  border: 1px solid rgba(var(--zp-sky-rgb), 0.22) !important;
   border-radius: 5px;
   padding: 0.15em 0.45em;
   font-family: var(--sl-font-mono);
@@ -322,10 +325,10 @@ starlight-toc a[aria-current='true'] {
   display: table; /* override @layer starlight.content: display:block */
   width: 100%;
   min-width: 480px;
-  background: rgba(11, 25, 41, 0.95);
+  background: rgba(var(--zp-bg-rgb), 0.95);
   border-collapse: separate;
   border-spacing: 0;
-  border: 1px solid rgba(34, 211, 238, 0.2);
+  border: 1px solid rgba(var(--zp-sky-rgb), 0.2);
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 0;
@@ -334,22 +337,22 @@ starlight-toc a[aria-current='true'] {
 .sl-markdown-content th {
   padding: 1rem 1.25rem !important;
   text-align: left;
-  background: rgba(34, 211, 238, 0.08);
+  background: rgba(var(--zp-sky-rgb), 0.08);
   color: var(--sl-color-accent);
   font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 2px solid rgba(34, 211, 238, 0.18);
+  border-bottom: 2px solid rgba(var(--zp-sky-rgb), 0.18);
   white-space: nowrap;
 }
 
 .sl-markdown-content td {
   padding: 1rem 1.25rem !important;
-  border-bottom: 1px solid rgba(34, 211, 238, 0.08);
+  border-bottom: 1px solid rgba(var(--zp-sky-rgb), 0.08);
   line-height: 1.7;
   font-size: 0.95rem;
-  color: #cbd5e1;
+  color: var(--sl-color-text);
   word-break: break-word;
 }
 
@@ -358,14 +361,14 @@ starlight-toc a[aria-current='true'] {
 }
 
 .sl-markdown-content tr:hover td {
-  background: rgba(34, 211, 238, 0.03);
+  background: rgba(var(--zp-sky-rgb), 0.03);
 }
 
 /* ---- Pixel grid background ---- */
 .page {
   background-image:
-    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(var(--zp-sky-rgb), 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--zp-sky-rgb), 0.03) 1px, transparent 1px);
   background-size: 32px 32px;
   background-attachment: fixed;
 }
