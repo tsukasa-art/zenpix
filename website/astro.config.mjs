@@ -12,7 +12,7 @@ export default defineConfig({
     starlight({
       title: 'zenpix',
       logo: {
-        src: './public/logo-icon.jpg',
+        src: './public/logo.svg',
         alt: 'zenpix',
       },
       defaultLocale: 'root',
@@ -40,8 +40,10 @@ export default defineConfig({
         { slug: 'benchmarks', label: 'Benchmarks', translations: { ja: 'ベンチマーク' } },
         { slug: 'environments', label: 'Environments & Troubleshooting', translations: { ja: '動作環境・トラブルシューティング' } },
       ],
-      favicon: '/favicon.png',
+      favicon: '/favicon.svg',
       head: [
+        { tag: 'link', attrs: { rel: 'icon', href: '/favicon.ico', sizes: '32x32' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
         {
           tag: 'link',
           attrs: {
