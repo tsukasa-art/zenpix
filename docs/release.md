@@ -151,6 +151,8 @@ npm pack zenpix-darwin-arm64@1.0.4
 
 残り4 optional packageも同様に取得し、全7件のファイル一覧、`LICENSE`、`THIRD_PARTY_LICENSES`、version、root `optionalDependencies`を再検査します。別の一時projectでroot install/API/CLIとWASM browser E2Eも再実行します。
 
+npm のページ（https://www.npmjs.com/package/zenpix）で README の先頭のロゴと比較画像が表示されることも確認します。
+
 ## 9. website deploy、tag、GitHub Release
 
 registry再取得の検証後、明示許可がある場合だけwebsiteをdeployします。公開URLで日英ページとWASM例を確認します。

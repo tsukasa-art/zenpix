@@ -1,7 +1,7 @@
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/lockup-dark@2x.png">
-    <img alt="zenpix" src="assets/brand/lockup-light@2x.png" height="56">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/tsukasa-art/zenpix/HEAD/assets/brand/lockup-dark@2x.png">
+    <img alt="zenpix" src="https://raw.githubusercontent.com/tsukasa-art/zenpix/HEAD/assets/brand/lockup-light@2x.png" height="56">
   </picture>
 </h1>
 

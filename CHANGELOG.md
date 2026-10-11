@@ -2,6 +2,12 @@
 
 このファイルは [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) の体裁に近づけ、利用者向けの差分を記録する。
 
+## [Unreleased]
+
+### ロゴ
+
+- README（日・英）の先頭を新しいロゴに替えた。npm のページでも出るよう、画像は GitHub 上の絶対 URL で指す（npm は README の中の HTML の画像の相対パスを読み替えない場合がある）。ドキュメントのサイトのロゴ・favicon・色は 2026-10-11 に公開済み（#5）。
+
 ## [1.0.4 / zenpix-wasm 1.1.2] - 2026-08-01
 
 ### 配布説明の修正
