@@ -31,19 +31,19 @@ if (isJa) {
     backdrop-filter: blur(12px);
     padding: 0.35rem 0.75rem;
     border-radius: 100px;
-    border: 1px solid rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(var(--zp-sky-rgb), 0.12);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
   }
 
   .lang-toggle:hover {
-    border-color: rgba(34, 211, 238, 0.35);
-    background: rgba(34, 211, 238, 0.05);
+    border-color: rgba(var(--zp-sky-rgb), 0.35);
+    background: rgba(var(--zp-sky-rgb), 0.05);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   }
 
   .lang-btn {
-    color: #4a7fa0;
+    color: var(--sl-color-gray-4);
     text-decoration: none !important;
     transition: all 0.2s ease;
     padding: 0.2rem 0.4rem;
@@ -55,16 +55,15 @@ if (isJa) {
   }
 
   .lang-btn.active {
-    color: #22d3ee;
-    text-shadow: 0 0 12px rgba(34, 211, 238, 0.5);
+    color: var(--zp-sky);
   }
 
   .lang-btn:hover:not(.active) {
-    color: #e0f9fd;
+    color: var(--zp-pale);
   }
 
   .sep {
-    color: rgba(34, 211, 238, 0.25);
+    color: rgba(var(--zp-sky-rgb), 0.25);
     user-select: none;
     font-size: 0.75rem;
     font-weight: 400;
